@@ -13,11 +13,8 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* About */}
           <div className="md:col-span-1">
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 text-white">
-                <Bus className="h-5 w-5" />
-              </div>
-              <span className="text-lg font-bold text-white">ATPSOR</span>
+            <div className="mb-4">
+              <img src="/atpsor-logo.png" alt="ATPSOR" className="h-16 w-auto" />
             </div>
             <p className="text-sm leading-relaxed">{t("footer.aboutText")}</p>
           </div>
@@ -92,7 +89,7 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary-400" />
-                <span>+40 XXX XXX XXX</span>
+                <span>+40 745 635 657</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary-400" />
@@ -100,7 +97,10 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary-400" />
-                <span>București, România</span>
+                <span>Com. Clinceni, Str. Săbarului 120, Ilfov</span>
+              </li>
+              <li className="text-xs text-gray-500 mt-2">
+                CIF: 52819099
               </li>
             </ul>
           </div>

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { VEHICLE_CATEGORIES } from "@/types/database";
 
-const PLATFORM_FEE_PERCENT = 3; // 3% comision ATPSOR inclus in pret
+const PLATFORM_FEE_PERCENT = 5; // 5% comision ATPSOR inclus in pret
 const TVA_PERCENT = 21; // TVA Romania
 
 // Demo request - matches what the client posted

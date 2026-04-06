@@ -8,14 +8,11 @@ const intlMiddleware = createMiddleware(routing);
 export async function middleware(request: NextRequest) {
   const response = intlMiddleware(request);
 
-  // Update Supabase session (skip if not configured with real credentials)
+  // Update Supabase session
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (url && !url.includes("placeholder")) {
-      await updateSession(request);
-    }
+    await updateSession(request);
   } catch {
-    // Supabase not configured, skip session update
+    // Skip if error
   }
 
   return response;
