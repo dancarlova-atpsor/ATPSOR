@@ -1,0 +1,188 @@
+{
+  "common": {
+    "appName": "ATPSOR",
+    "appFullName": "Asociația Transportatorilor de Persoane prin Serviciul Ocazional din România",
+    "login": "Autentificare",
+    "register": "Înregistrare",
+    "logout": "Deconectare",
+    "search": "Caută",
+    "submit": "Trimite",
+    "cancel": "Anulează",
+    "save": "Salvează",
+    "edit": "Editează",
+    "delete": "Șterge",
+    "back": "Înapoi",
+    "next": "Următorul",
+    "previous": "Anterior",
+    "loading": "Se încarcă...",
+    "noResults": "Niciun rezultat",
+    "viewAll": "Vezi toate",
+    "viewDetails": "Vezi detalii",
+    "seats": "locuri",
+    "from": "De la",
+    "to": "Până la",
+    "date": "Dată",
+    "price": "Preț",
+    "contact": "Contact",
+    "phone": "Telefon",
+    "email": "Email",
+    "address": "Adresă"
+  },
+  "nav": {
+    "home": "Acasă",
+    "search": "Caută Transport",
+    "transporters": "Transportatori",
+    "request": "Cerere Transport",
+    "dashboard": "Panou de Control",
+    "about": "Despre Noi"
+  },
+  "hero": {
+    "title": "Găsește transportul perfect pentru grupul tău",
+    "subtitle": "Conectăm călătorii cu transportatori verificați. De la microbuze de 9 locuri până la autocare de 80 de locuri.",
+    "searchPlaceholder": "Unde vrei să călătorești?",
+    "passengers": "Număr pasageri",
+    "departureDate": "Data plecării",
+    "findTransport": "Găsește Transport"
+  },
+  "categories": {
+    "title": "Categorii de Vehicule",
+    "subtitle": "Alegem vehiculul potrivit pentru orice grup",
+    "minibus": {
+      "name": "Minibus",
+      "seats": "8+1 - 19 locuri",
+      "description": "Perfect pentru grupuri mici, transferuri aeroport și excursii scurte."
+    },
+    "midibus": {
+      "name": "Midibus",
+      "seats": "20 - 39 locuri",
+      "description": "Ideal pentru excursii de grup, evenimente corporate și tabere școlare."
+    },
+    "autocar": {
+      "name": "Autocar",
+      "seats": "40 - 80 locuri",
+      "description": "Potrivit pentru excursii mari, turnee și transport de echipe."
+    }
+  },
+  "howItWorks": {
+    "title": "Cum Funcționează",
+    "subtitle": "În 3 pași simpli găsești transportul ideal",
+    "step1": {
+      "title": "Postează Cererea",
+      "description": "Descrie traseul, data și numărul de pasageri."
+    },
+    "step2": {
+      "title": "Primești Oferte",
+      "description": "Transportatorii verificați îți trimit oferte competitive."
+    },
+    "step3": {
+      "title": "Rezervă și Călătorește",
+      "description": "Alege cea mai bună ofertă, plătește online și bucură-te de călătorie."
+    }
+  },
+  "transporters": {
+    "title": "Transportatori Verificați",
+    "subtitle": "Parteneri de încredere pentru călătoriile tale",
+    "verified": "Verificat ATPSOR",
+    "vehicles": "vehicule",
+    "rating": "Rating",
+    "viewFleet": "Vezi Flota",
+    "contactNow": "Contactează",
+    "filters": {
+      "county": "Județ",
+      "vehicleType": "Tip Vehicul",
+      "seats": "Număr Locuri",
+      "allCounties": "Toate județele",
+      "allTypes": "Toate tipurile"
+    }
+  },
+  "request": {
+    "title": "Solicită Transport",
+    "subtitle": "Completează formularul și primește oferte de la transportatori",
+    "pickupLocation": "Locul de preluare",
+    "pickupCity": "Oraș plecare",
+    "dropoffLocation": "Destinația",
+    "dropoffCity": "Oraș destinație",
+    "departureDate": "Data plecării",
+    "returnDate": "Data întoarcerii",
+    "isRoundTrip": "Dus-întors",
+    "passengers": "Număr pasageri",
+    "vehicleCategory": "Tip vehicul dorit",
+    "anyCategory": "Orice tip",
+    "description": "Detalii suplimentare",
+    "descriptionPlaceholder": "Descrie orice cerință specială (bagaje, opriri intermediare, etc.)",
+    "submitRequest": "Trimite Cererea",
+    "success": "Cererea a fost trimisă cu succes!",
+    "successMessage": "Vei primi oferte de la transportatori în curând."
+  },
+  "offers": {
+    "title": "Oferte Primite",
+    "price": "Preț",
+    "vehicle": "Vehicul",
+    "includesDriver": "Include șofer",
+    "includesFuel": "Include combustibil",
+    "validUntil": "Valabilă până la",
+    "accept": "Acceptă Oferta",
+    "reject": "Respinge",
+    "noOffers": "Nu ai primit încă oferte pentru această cerere."
+  },
+  "booking": {
+    "title": "Rezervare",
+    "confirmed": "Rezervare Confirmată",
+    "payNow": "Plătește Acum",
+    "totalPrice": "Preț Total",
+    "status": {
+      "confirmed": "Confirmată",
+      "in_progress": "În desfășurare",
+      "completed": "Finalizată",
+      "cancelled": "Anulată"
+    }
+  },
+  "dashboard": {
+    "client": {
+      "title": "Panou Client",
+      "myRequests": "Cererile Mele",
+      "myBookings": "Rezervările Mele",
+      "newRequest": "Cerere Nouă"
+    },
+    "transporter": {
+      "title": "Panou Transportator",
+      "availableRequests": "Cereri Disponibile",
+      "myOffers": "Ofertele Mele",
+      "myVehicles": "Vehiculele Mele",
+      "myBookings": "Rezervări",
+      "addVehicle": "Adaugă Vehicul",
+      "earnings": "Venituri"
+    }
+  },
+  "auth": {
+    "loginTitle": "Bine ai revenit!",
+    "loginSubtitle": "Conectează-te pentru a continua",
+    "registerTitle": "Creează un cont",
+    "registerSubtitle": "Alătură-te platformei ATPSOR",
+    "email": "Adresă de email",
+    "password": "Parolă",
+    "confirmPassword": "Confirmă parola",
+    "fullName": "Nume complet",
+    "phone": "Număr de telefon",
+    "role": "Sunt...",
+    "roleClient": "Client - Caut transport",
+    "roleTransporter": "Transportator - Ofer servicii de transport",
+    "loginWithGoogle": "Continuă cu Google",
+    "loginWithFacebook": "Continuă cu Facebook",
+    "loginWithPhone": "Continuă cu Telefonul",
+    "orContinueWith": "sau continuă cu",
+    "noAccount": "Nu ai cont?",
+    "hasAccount": "Ai deja cont?",
+    "forgotPassword": "Ai uitat parola?"
+  },
+  "footer": {
+    "about": "Despre ATPSOR",
+    "aboutText": "Asociația Transportatorilor de Persoane prin Serviciul Ocazional din România conectează transportatorii verificați cu călătorii din toată țara.",
+    "quickLinks": "Linkuri Rapide",
+    "legal": "Legal",
+    "terms": "Termeni și Condiții",
+    "privacy": "Politica de Confidențialitate",
+    "cookies": "Politica de Cookie-uri",
+    "rights": "Toate drepturile rezervate."
+  }
+}

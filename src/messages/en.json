@@ -1,0 +1,188 @@
+{
+  "common": {
+    "appName": "ATPSOR",
+    "appFullName": "Romanian Association of Occasional Passenger Transport",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "search": "Search",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "loading": "Loading...",
+    "noResults": "No results",
+    "viewAll": "View all",
+    "viewDetails": "View details",
+    "seats": "seats",
+    "from": "From",
+    "to": "To",
+    "date": "Date",
+    "price": "Price",
+    "contact": "Contact",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Find Transport",
+    "transporters": "Transporters",
+    "request": "Request Transport",
+    "dashboard": "Dashboard",
+    "about": "About Us"
+  },
+  "hero": {
+    "title": "Find the perfect transport for your group",
+    "subtitle": "We connect travelers with verified transporters. From 9-seat minibuses to 80-seat coaches.",
+    "searchPlaceholder": "Where do you want to travel?",
+    "passengers": "Number of passengers",
+    "departureDate": "Departure date",
+    "findTransport": "Find Transport"
+  },
+  "categories": {
+    "title": "Vehicle Categories",
+    "subtitle": "The right vehicle for any group size",
+    "minibus": {
+      "name": "Minibus",
+      "seats": "8+1 - 19 seats",
+      "description": "Perfect for small groups, airport transfers, and short trips."
+    },
+    "midibus": {
+      "name": "Midibus",
+      "seats": "20 - 39 seats",
+      "description": "Ideal for group trips, corporate events, and school camps."
+    },
+    "autocar": {
+      "name": "Coach",
+      "seats": "40 - 80 seats",
+      "description": "Suitable for large excursions, tours, and team transport."
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Find your ideal transport in 3 simple steps",
+    "step1": {
+      "title": "Post Your Request",
+      "description": "Describe the route, date, and number of passengers."
+    },
+    "step2": {
+      "title": "Receive Offers",
+      "description": "Verified transporters send you competitive offers."
+    },
+    "step3": {
+      "title": "Book and Travel",
+      "description": "Choose the best offer, pay online, and enjoy your trip."
+    }
+  },
+  "transporters": {
+    "title": "Verified Transporters",
+    "subtitle": "Trusted partners for your journeys",
+    "verified": "ATPSOR Verified",
+    "vehicles": "vehicles",
+    "rating": "Rating",
+    "viewFleet": "View Fleet",
+    "contactNow": "Contact",
+    "filters": {
+      "county": "County",
+      "vehicleType": "Vehicle Type",
+      "seats": "Seats",
+      "allCounties": "All counties",
+      "allTypes": "All types"
+    }
+  },
+  "request": {
+    "title": "Request Transport",
+    "subtitle": "Fill out the form and receive offers from transporters",
+    "pickupLocation": "Pickup location",
+    "pickupCity": "Pickup city",
+    "dropoffLocation": "Destination",
+    "dropoffCity": "Destination city",
+    "departureDate": "Departure date",
+    "returnDate": "Return date",
+    "isRoundTrip": "Round trip",
+    "passengers": "Number of passengers",
+    "vehicleCategory": "Preferred vehicle type",
+    "anyCategory": "Any type",
+    "description": "Additional details",
+    "descriptionPlaceholder": "Describe any special requirements (luggage, intermediate stops, etc.)",
+    "submitRequest": "Submit Request",
+    "success": "Request submitted successfully!",
+    "successMessage": "You will receive offers from transporters soon."
+  },
+  "offers": {
+    "title": "Received Offers",
+    "price": "Price",
+    "vehicle": "Vehicle",
+    "includesDriver": "Includes driver",
+    "includesFuel": "Includes fuel",
+    "validUntil": "Valid until",
+    "accept": "Accept Offer",
+    "reject": "Reject",
+    "noOffers": "No offers received yet for this request."
+  },
+  "booking": {
+    "title": "Booking",
+    "confirmed": "Booking Confirmed",
+    "payNow": "Pay Now",
+    "totalPrice": "Total Price",
+    "status": {
+      "confirmed": "Confirmed",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "dashboard": {
+    "client": {
+      "title": "Client Dashboard",
+      "myRequests": "My Requests",
+      "myBookings": "My Bookings",
+      "newRequest": "New Request"
+    },
+    "transporter": {
+      "title": "Transporter Dashboard",
+      "availableRequests": "Available Requests",
+      "myOffers": "My Offers",
+      "myVehicles": "My Vehicles",
+      "myBookings": "Bookings",
+      "addVehicle": "Add Vehicle",
+      "earnings": "Earnings"
+    }
+  },
+  "auth": {
+    "loginTitle": "Welcome Back!",
+    "loginSubtitle": "Sign in to continue",
+    "registerTitle": "Create an Account",
+    "registerSubtitle": "Join the ATPSOR platform",
+    "email": "Email address",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "fullName": "Full name",
+    "phone": "Phone number",
+    "role": "I am a...",
+    "roleClient": "Client - Looking for transport",
+    "roleTransporter": "Transporter - Offering transport services",
+    "loginWithGoogle": "Continue with Google",
+    "loginWithFacebook": "Continue with Facebook",
+    "loginWithPhone": "Continue with Phone",
+    "orContinueWith": "or continue with",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "forgotPassword": "Forgot password?"
+  },
+  "footer": {
+    "about": "About ATPSOR",
+    "aboutText": "The Romanian Association of Occasional Passenger Transport connects verified transporters with travelers across the country.",
+    "quickLinks": "Quick Links",
+    "legal": "Legal",
+    "terms": "Terms and Conditions",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Policy",
+    "rights": "All rights reserved."
+  }
+}
