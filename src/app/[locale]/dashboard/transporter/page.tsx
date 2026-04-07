@@ -351,6 +351,11 @@ export default function TransporterDashboard() {
                         {request.description}
                       </p>
                     )}
+                    {request.intermediate_cities && (
+                      <p className="mt-1 text-xs text-blue-500">
+                        Traseu: {request.pickup_city} → {request.intermediate_cities} → {request.dropoff_city}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Link

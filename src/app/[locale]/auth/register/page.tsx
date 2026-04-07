@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ROMANIAN_COUNTIES } from "@/types/database";
+import { CityTagsInput } from "@/components/ui/CityTagsInput";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
@@ -37,6 +38,7 @@ export default function RegisterPage() {
   const [companyCounty, setCompanyCounty] = useState("");
   const [companyPhone, setCompanyPhone] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
+  const [pickupCities, setPickupCities] = useState<string[]>([]);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -53,6 +55,11 @@ export default function RegisterPage() {
 
     if (role === "transporter" && (!companyName || !companyCui || !companyCity || !companyCounty)) {
       setError("Completează toate câmpurile obligatorii ale companiei");
+      return;
+    }
+
+    if (role === "transporter" && pickupCities.length === 0) {
+      setError("Adaugă cel puțin un oraș de îmbarcare");
       return;
     }
 
@@ -91,6 +98,7 @@ export default function RegisterPage() {
           county: companyCounty,
           phone: companyPhone || phone,
           email: email,
+          pickup_cities: pickupCities,
         });
 
         if (companyError) {
@@ -326,6 +334,17 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
+
+              <CityTagsInput
+                value={pickupCities}
+                onChange={setPickupCities}
+                label="Orașe de îmbarcare"
+                placeholder="Ex: București, Ploiești, Pitești..."
+                required
+              />
+              <p className="text-xs text-gray-500">
+                Adaugă orașele din care poți prelua clienți. Vei apărea în căutări din aceste orașe.
+              </p>
             </div>
           )}
 

@@ -209,6 +209,11 @@ export default function ClientDashboard() {
                           </span>
                         )}
                       </div>
+                      {request.intermediate_cities && (
+                        <span className="text-xs text-gray-400">
+                          via {request.intermediate_cities}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

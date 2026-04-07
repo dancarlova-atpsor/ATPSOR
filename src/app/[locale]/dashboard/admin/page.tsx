@@ -519,6 +519,15 @@ export default function AdminDashboard() {
                       <div className="mt-1 text-xs text-gray-400">
                         Owner: {c.owner?.full_name} ({c.owner?.email})
                       </div>
+                      {c.pickup_cities?.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {c.pickup_cities.map((city: string) => (
+                            <span key={city} className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-600">
+                              {city}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -600,6 +609,9 @@ export default function AdminDashboard() {
                 <tr key={r.id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">
                     {r.pickup_city} → {r.dropoff_city}
+                    {r.intermediate_cities && (
+                      <div className="text-xs text-gray-400">via {r.intermediate_cities}</div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
                     {r.client?.full_name || r.client?.email}

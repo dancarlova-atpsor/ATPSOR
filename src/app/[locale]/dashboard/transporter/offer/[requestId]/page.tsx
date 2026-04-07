@@ -263,6 +263,15 @@ export default function SendOfferPage() {
             </span>
           </div>
         </div>
+        {req.intermediate_cities && (
+          <div className="flex items-center gap-2 text-sm sm:col-span-2">
+            <MapPin className="h-4 w-4 text-blue-500" />
+            <span className="text-gray-600">Traseu detaliat:</span>
+            <span className="font-medium">
+              {req.pickup_city} → {req.intermediate_cities} → {req.dropoff_city}
+            </span>
+          </div>
+        )}
         {req.description && (
           <p className="mt-3 text-sm text-gray-600">{req.description}</p>
         )}

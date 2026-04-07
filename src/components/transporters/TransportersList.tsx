@@ -33,6 +33,7 @@ interface TransporterData {
   vehicles_count: number;
   categories: VehicleCategory[];
   price_per_km: Record<string, number>;
+  pickup_cities: string[];
 }
 
 const categoryLabels: Record<VehicleCategory, string> = Object.fromEntries(
@@ -47,6 +48,7 @@ export function TransportersList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCounty, setSelectedCounty] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [pickupCityFilter, setPickupCityFilter] = useState("");
   const [transporters, setTransporters] = useState<TransporterData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +61,7 @@ export function TransportersList() {
         supabase
           .from("companies")
           .select(
-            "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url"
+            "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url, pickup_cities"
           ),
         supabase
           .from("company_pricing")
@@ -112,6 +114,7 @@ export function TransportersList() {
         vehicles_count: vehicleCounts[c.id] ?? 0,
         categories: pricingByCompany[c.id]?.categories ?? [],
         price_per_km: pricingByCompany[c.id]?.priceMap ?? {},
+        pickup_cities: c.pickup_cities ?? [],
       }));
 
       setTransporters(mapped);
@@ -135,6 +138,14 @@ export function TransportersList() {
     if (
       selectedCategory &&
       !company.categories.includes(selectedCategory as VehicleCategory)
+    ) {
+      return false;
+    }
+    if (
+      pickupCityFilter &&
+      !company.pickup_cities.some((city) =>
+        city.toLowerCase().includes(pickupCityFilter.toLowerCase())
+      )
     ) {
       return false;
     }
@@ -192,6 +203,18 @@ export function TransportersList() {
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          </div>
+
+          {/* Pickup city filter */}
+          <div className="relative sm:col-span-3">
+            <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={pickupCityFilter}
+              onChange={(e) => setPickupCityFilter(e.target.value)}
+              placeholder="Disponibil din orașul:"
+              className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+            />
           </div>
         </div>
       </div>
@@ -271,6 +294,20 @@ export function TransportersList() {
                     </div>
                   ))}
                 </div>
+
+                {/* Pickup cities */}
+                {company.pickup_cities.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {company.pickup_cities.map((city) => (
+                      <span
+                        key={city}
+                        className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-600"
+                      >
+                        {city}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="mt-5 flex gap-2">

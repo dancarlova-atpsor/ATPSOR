@@ -38,6 +38,7 @@ export function RequestTransportForm() {
   const [pickupCity, setPickupCity] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
   const [dropoffCity, setDropoffCity] = useState("");
+  const [intermediateCities, setIntermediateCities] = useState("");
   const [departureDate, setDepartureDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [isRoundTrip, setIsRoundTrip] = useState(false);
@@ -94,6 +95,7 @@ export function RequestTransportForm() {
           pickupLocation,
           dropoffCity,
           dropoffLocation,
+          intermediateCities,
           departureDate,
           returnDate,
           isRoundTrip,
@@ -301,6 +303,25 @@ export function RequestTransportForm() {
                 className="w-full rounded-lg border border-gray-300 py-3 px-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
                 placeholder="ex: Piața Sfatului" />
             </div>
+          </div>
+
+          {/* Intermediate cities */}
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Orașe intermediare (traseu detaliat) *
+            </label>
+            <textarea
+              value={intermediateCities}
+              onChange={(e) => setIntermediateCities(e.target.value)}
+              required
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+              placeholder="Ex: Pitești, Rm. Vâlcea, Deva (orașele prin care treceți)"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Specifică toate orașele prin care treceți pentru calculul corect al kilometrilor.
+              Transportatorul va emite contractul pe baza acestui traseu.
+            </p>
           </div>
 
           {/* Live distance indicator */}

@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       pickupLocation,
       dropoffCity,
       dropoffLocation,
+      intermediateCities,
       departureDate,
       returnDate,
       isRoundTrip,
@@ -69,6 +70,12 @@ export async function POST(request: Request) {
               <td style="padding:6px 0;color:#6b7280;">Destina&#539;ie:</td>
               <td style="padding:6px 0;font-weight:bold;">${dropoffCity} - ${dropoffLocation}</td>
             </tr>
+            ${intermediateCities ? `
+            <tr>
+              <td style="padding:6px 0;color:#6b7280;">Traseu detaliat:</td>
+              <td style="padding:6px 0;font-weight:bold;">${pickupCity} → ${intermediateCities} → ${dropoffCity}</td>
+            </tr>
+            ` : ""}
             <tr>
               <td style="padding:6px 0;color:#6b7280;">Data plec&#259;rii:</td>
               <td style="padding:6px 0;">${departureDate}</td>
@@ -165,6 +172,7 @@ export async function POST(request: Request) {
             passengers: parseInt(passengers) || 1,
             vehicle_category: vehicleCategory || null,
             description: description || null,
+            intermediate_cities: intermediateCities || null,
           })
           .select("id")
           .single();
