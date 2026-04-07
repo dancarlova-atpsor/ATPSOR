@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import { createClient } from "@/lib/supabase/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || "dancarlova@gmail.com";
 
 export async function POST(request: Request) {
@@ -127,19 +130,56 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    const { error } = await resend.emails.send({
-      from: "ATPSOR <onboarding@resend.dev>",
-      to: [NOTIFY_EMAIL],
-      subject: `Cerere Transport: ${pickupCity} → ${dropoffCity} | ${passengers} pers. | ${departureDate}`,
-      html: emailHtml,
-    });
+    if (resend) {
+      const { error } = await resend.emails.send({
+        from: "ATPSOR <onboarding@resend.dev>",
+        to: [NOTIFY_EMAIL],
+        subject: `Cerere Transport: ${pickupCity} → ${dropoffCity} | ${passengers} pers. | ${departureDate}`,
+        html: emailHtml,
+      });
 
-    if (error) {
-      console.error("Email send error:", error);
-      return NextResponse.json(
-        { success: false, error: "Failed to send email" },
-        { status: 500 }
-      );
+      if (error) {
+        console.error("Email send error:", error);
+      }
+    }
+
+    // Save to database if user is authenticated
+    try {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: newRequest, error: dbError } = await supabase
+          .from("transport_requests")
+          .insert({
+            client_id: user.id,
+            pickup_location: pickupLocation || pickupCity,
+            pickup_city: pickupCity,
+            dropoff_location: dropoffLocation || dropoffCity,
+            dropoff_city: dropoffCity,
+            departure_date: departureDate,
+            return_date: returnDate || null,
+            is_round_trip: isRoundTrip || false,
+            passengers: parseInt(passengers) || 1,
+            vehicle_category: vehicleCategory || null,
+            description: description || null,
+          })
+          .select("id")
+          .single();
+
+        if (dbError) {
+          console.error("DB save error:", dbError);
+        }
+
+        return NextResponse.json({
+          success: true,
+          requestId: newRequest?.id,
+        });
+      }
+    } catch (dbErr) {
+      console.error("DB save error:", dbErr);
     }
 
     return NextResponse.json({ success: true });

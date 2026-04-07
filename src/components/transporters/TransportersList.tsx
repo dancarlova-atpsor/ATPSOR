@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   MapPin,
@@ -11,116 +11,29 @@ import {
   ChevronDown,
   Phone,
   Mail,
+  Loader2,
 } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { ROMANIAN_COUNTIES, type VehicleCategory } from "@/types/database";
-
 import { VEHICLE_CATEGORIES } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
 
-// Demo data - will be replaced with Supabase queries
-const DEMO_TRANSPORTERS = [
-  {
-    id: "1",
-    name: "TransExpress SRL",
-    city: "București",
-    county: "București",
-    rating: 4.8,
-    total_reviews: 124,
-    is_verified: true,
-    description:
-      "Transport de persoane de peste 15 ani. Flotă modernă, șoferi profesioniști.",
-    phone: "+40 721 123 456",
-    email: "contact@transexpress.ro",
-    vehicles_count: 12,
-    categories: ["ridesharing", "microbuz", "autocar"] as VehicleCategory[],
-    price_per_km: { ridesharing: 2.50, microbuz: 4.50, autocar: 7.50 } as Record<string, number>,
-    logo_url: null,
-  },
-  {
-    id: "2",
-    name: "RoTravel Transport",
-    city: "Cluj-Napoca",
-    county: "Cluj",
-    rating: 4.6,
-    total_reviews: 87,
-    is_verified: true,
-    description:
-      "Servicii de transport ocazional în zona Transilvania. Microbuze și autocare.",
-    phone: "+40 745 234 567",
-    email: "info@rotravel.ro",
-    vehicles_count: 8,
-    categories: ["microbuz", "midiautocar", "autocar"] as VehicleCategory[],
-    price_per_km: { microbuz: 4.50, midiautocar: 6.50, autocar: 7.50 } as Record<string, number>,
-    logo_url: null,
-  },
-  {
-    id: "3",
-    name: "EuroTrans Group",
-    city: "Timișoara",
-    county: "Timiș",
-    rating: 4.9,
-    total_reviews: 203,
-    is_verified: true,
-    description:
-      "Lider în transportul de persoane în vestul României. Autocare premium.",
-    phone: "+40 756 345 678",
-    email: "office@eurotrans.ro",
-    vehicles_count: 20,
-    categories: ["autocar", "autocar_maxi", "autocar_grand_turismo"] as VehicleCategory[],
-    price_per_km: { autocar: 7.50, autocar_maxi: 8.50, autocar_grand_turismo: 9.50 } as Record<string, number>,
-    logo_url: null,
-  },
-  {
-    id: "4",
-    name: "MoldoTur SRL",
-    city: "Iași",
-    county: "Iași",
-    rating: 4.5,
-    total_reviews: 56,
-    is_verified: true,
-    description:
-      "Transport ocazional pentru excursii, tabere și evenimente în Moldova.",
-    phone: "+40 732 456 789",
-    email: "contact@moldotur.ro",
-    vehicles_count: 6,
-    categories: ["microbuz", "midiautocar"] as VehicleCategory[],
-    price_per_km: { microbuz: 4.50, midiautocar: 6.50 } as Record<string, number>,
-    logo_url: null,
-  },
-  {
-    id: "5",
-    name: "Black Sea Transport",
-    city: "Constanța",
-    county: "Constanța",
-    rating: 4.7,
-    total_reviews: 142,
-    is_verified: true,
-    description:
-      "Specializați în transport turistic la Marea Neagră. Transfer aeroport și excursii.",
-    phone: "+40 723 567 890",
-    email: "rezervari@bstransport.ro",
-    vehicles_count: 15,
-    categories: ["ridesharing", "microbuz", "midiautocar", "autocar"] as VehicleCategory[],
-    price_per_km: { ridesharing: 2.50, microbuz: 4.50, midiautocar: 6.50, autocar: 7.50 } as Record<string, number>,
-    logo_url: null,
-  },
-  {
-    id: "6",
-    name: "Carpați Bus",
-    city: "Brașov",
-    county: "Brașov",
-    rating: 4.4,
-    total_reviews: 38,
-    is_verified: false,
-    description: "Transport de persoane în zona Brașov-Sibiu. Microbuze 9-23 locuri.",
-    phone: "+40 744 678 901",
-    email: "info@carpati-bus.ro",
-    vehicles_count: 4,
-    categories: ["ridesharing", "microbuz"] as VehicleCategory[],
-    price_per_km: { ridesharing: 2.50, microbuz: 4.50 } as Record<string, number>,
-    logo_url: null,
-  },
-];
+interface TransporterData {
+  id: string;
+  name: string;
+  city: string;
+  county: string;
+  rating: number;
+  total_reviews: number;
+  is_verified: boolean;
+  description: string;
+  phone: string;
+  email: string;
+  logo_url: string | null;
+  vehicles_count: number;
+  categories: VehicleCategory[];
+  price_per_km: Record<string, number>;
+}
 
 const categoryLabels: Record<VehicleCategory, string> = Object.fromEntries(
   Object.entries(VEHICLE_CATEGORIES).map(([key, val]) => [
@@ -134,8 +47,81 @@ export function TransportersList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCounty, setSelectedCounty] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [transporters, setTransporters] = useState<TransporterData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = DEMO_TRANSPORTERS.filter((company) => {
+  useEffect(() => {
+    async function fetchTransporters() {
+      const supabase = createClient();
+
+      // Fetch companies, pricing, and vehicle counts in parallel
+      const [companiesRes, pricingRes, vehiclesRes] = await Promise.all([
+        supabase
+          .from("companies")
+          .select(
+            "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url"
+          ),
+        supabase
+          .from("company_pricing")
+          .select("company_id, vehicle_category, price_per_km"),
+        supabase
+          .from("vehicles")
+          .select("company_id")
+          .eq("is_active", true),
+      ]);
+
+      const companies = companiesRes.data ?? [];
+      const pricing = pricingRes.data ?? [];
+      const vehicles = vehiclesRes.data ?? [];
+
+      // Build vehicle counts per company
+      const vehicleCounts: Record<string, number> = {};
+      for (const v of vehicles) {
+        vehicleCounts[v.company_id] = (vehicleCounts[v.company_id] || 0) + 1;
+      }
+
+      // Build pricing maps per company
+      const pricingByCompany: Record<
+        string,
+        { categories: VehicleCategory[]; priceMap: Record<string, number> }
+      > = {};
+      for (const p of pricing) {
+        if (!pricingByCompany[p.company_id]) {
+          pricingByCompany[p.company_id] = { categories: [], priceMap: {} };
+        }
+        const entry = pricingByCompany[p.company_id];
+        if (!entry.categories.includes(p.vehicle_category as VehicleCategory)) {
+          entry.categories.push(p.vehicle_category as VehicleCategory);
+        }
+        entry.priceMap[p.vehicle_category] = p.price_per_km;
+      }
+
+      // Map to the shape the UI expects
+      const mapped: TransporterData[] = companies.map((c) => ({
+        id: c.id,
+        name: c.name ?? "",
+        city: c.city ?? "",
+        county: c.county ?? "",
+        rating: c.rating ?? 0,
+        total_reviews: c.total_reviews ?? 0,
+        is_verified: c.is_verified ?? false,
+        description: c.description ?? "",
+        phone: c.phone ?? "",
+        email: c.email ?? "",
+        logo_url: c.logo_url ?? null,
+        vehicles_count: vehicleCounts[c.id] ?? 0,
+        categories: pricingByCompany[c.id]?.categories ?? [],
+        price_per_km: pricingByCompany[c.id]?.priceMap ?? {},
+      }));
+
+      setTransporters(mapped);
+      setLoading(false);
+    }
+
+    fetchTransporters();
+  }, []);
+
+  const filtered = transporters.filter((company) => {
     if (
       searchQuery &&
       !company.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -210,101 +196,110 @@ export function TransportersList() {
         </div>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        </div>
+      )}
+
       {/* Results */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((company) => (
-          <div
-            key={company.id}
-            className="group overflow-hidden rounded-xl bg-white shadow-md transition-all hover:shadow-lg"
-          >
-            {/* Header */}
-            <div className="relative bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white">
-                    {company.name}
-                  </h3>
-                  <div className="mt-1 flex items-center gap-1 text-sm text-primary-100">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {company.city}, {company.county}
+      {!loading && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((company) => (
+            <div
+              key={company.id}
+              className="group overflow-hidden rounded-xl bg-white shadow-md transition-all hover:shadow-lg"
+            >
+              {/* Header */}
+              <div className="relative bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      {company.name}
+                    </h3>
+                    <div className="mt-1 flex items-center gap-1 text-sm text-primary-100">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {company.city}, {company.county}
+                    </div>
+                  </div>
+                  {company.is_verified && (
+                    <span className="flex items-center gap-1 rounded-full bg-green-500 px-2.5 py-1 text-xs font-medium text-white">
+                      <Shield className="h-3 w-3" />
+                      {t("verified")}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6">
+                <p className="text-sm text-gray-600 line-clamp-2">
+                  {company.description}
+                </p>
+
+                {/* Stats */}
+                <div className="mt-4 flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm font-semibold text-gray-900">
+                      {company.rating}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      ({company.total_reviews})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <Bus className="h-4 w-4" />
+                    {company.vehicles_count} {t("vehicles")}
                   </div>
                 </div>
-                {company.is_verified && (
-                  <span className="flex items-center gap-1 rounded-full bg-green-500 px-2.5 py-1 text-xs font-medium text-white">
-                    <Shield className="h-3 w-3" />
-                    {t("verified")}
-                  </span>
-                )}
-              </div>
-            </div>
 
-            {/* Body */}
-            <div className="p-6">
-              <p className="text-sm text-gray-600 line-clamp-2">
-                {company.description}
-              </p>
-
-              {/* Stats */}
-              <div className="mt-4 flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-semibold text-gray-900">
-                    {company.rating}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    ({company.total_reviews})
-                  </span>
+                {/* Tarife per categorie - vizibile doar clientilor */}
+                <div className="mt-3 space-y-1.5">
+                  {company.categories.map((cat) => (
+                    <div
+                      key={cat}
+                      className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5"
+                    >
+                      <span className="text-xs text-gray-600">
+                        {VEHICLE_CATEGORIES[cat]?.label}
+                      </span>
+                      <span className="text-xs font-bold text-primary-600">
+                        {company.price_per_km[cat]?.toFixed(2)} RON/km + TVA
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <Bus className="h-4 w-4" />
-                  {company.vehicles_count} {t("vehicles")}
-                </div>
-              </div>
 
-              {/* Tarife per categorie - vizibile doar clientilor */}
-              <div className="mt-3 space-y-1.5">
-                {company.categories.map((cat) => (
-                  <div
-                    key={cat}
-                    className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5"
+                {/* Actions */}
+                <div className="mt-5 flex gap-2">
+                  <Link
+                    href={`/transporters/${company.id}`}
+                    className="flex-1 rounded-lg bg-primary-500 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-primary-600"
                   >
-                    <span className="text-xs text-gray-600">
-                      {VEHICLE_CATEGORIES[cat]?.label}
-                    </span>
-                    <span className="text-xs font-bold text-primary-600">
-                      {company.price_per_km[cat]?.toFixed(2)} RON/km + TVA
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actions */}
-              <div className="mt-5 flex gap-2">
-                <Link
-                  href={`/transporters/${company.id}`}
-                  className="flex-1 rounded-lg bg-primary-500 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-primary-600"
-                >
-                  {t("viewFleet")}
-                </Link>
-                <a
-                  href={`tel:${company.phone}`}
-                  className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-600 transition-colors hover:bg-gray-50"
-                >
-                  <Phone className="h-4 w-4" />
-                </a>
-                <a
-                  href={`mailto:${company.email}`}
-                  className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-600 transition-colors hover:bg-gray-50"
-                >
-                  <Mail className="h-4 w-4" />
-                </a>
+                    {t("viewFleet")}
+                  </Link>
+                  <a
+                    href={`tel:${company.phone}`}
+                    className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-600 transition-colors hover:bg-gray-50"
+                  >
+                    <Phone className="h-4 w-4" />
+                  </a>
+                  <a
+                    href={`mailto:${company.email}`}
+                    className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-600 transition-colors hover:bg-gray-50"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {filtered.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <div className="py-16 text-center">
           <Bus className="mx-auto h-12 w-12 text-gray-300" />
           <p className="mt-4 text-lg text-gray-500">{t("subtitle")}</p>

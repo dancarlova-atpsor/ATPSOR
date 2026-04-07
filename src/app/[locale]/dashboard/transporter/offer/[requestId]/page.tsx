@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Send,
@@ -14,59 +15,180 @@ import {
   MapPin,
   Users,
   Calendar,
+  Camera,
+  Image,
+  Loader2,
 } from "lucide-react";
 import { VEHICLE_CATEGORIES } from "@/types/database";
-
-// Demo: cererea pentru care se trimite oferta
-const DEMO_REQUEST = {
-  id: "r1",
-  pickup_city: "București",
-  pickup_location: "Aeroport Henri Coandă",
-  dropoff_city: "Brașov",
-  dropoff_location: "Hotel Kronwell",
-  departure_date: "2026-04-15",
-  return_date: "2026-04-17",
-  passengers: 40,
-  vehicle_category: "autocar",
-  description: "Excursie 3 zile, Brașov - Sibiu - București",
-};
-
-const DEMO_VEHICLES = [
-  { id: "v1", name: "Mercedes Sprinter 2023", category: "microbuz", seats: 19 },
-  { id: "v2", name: "MAN Lion's Coach 2022", category: "autocar", seats: 48 },
-  { id: "v4", name: "Setra ComfortClass 2021", category: "autocar_maxi", seats: 55 },
-];
+import { createClient } from "@/lib/supabase/client";
+import { uploadFile } from "@/lib/supabase/storage";
 
 export default function SendOfferPage() {
   const t = useTranslations();
   const router = useRouter();
+  const params = useParams();
+  const requestId = params.requestId as string;
+
   const [vehicleId, setVehicleId] = useState("");
   const [price, setPrice] = useState("");
   const [message, setMessage] = useState("");
   const [includesDriver, setIncludesDriver] = useState(true);
   const [includesFuel, setIncludesFuel] = useState(true);
   const [contractFile, setContractFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
-  const req = DEMO_REQUEST;
+  // Real data from DB
+  const [req, setReq] = useState<any>(null);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [company, setCompany] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/auth/login");
+        return;
+      }
+
+      // Fetch the transport request
+      const { data: request } = await supabase
+        .from("transport_requests")
+        .select("*")
+        .eq("id", requestId)
+        .single();
+
+      if (request) setReq(request);
+
+      // Fetch transporter's company
+      const { data: comp } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("owner_id", user.id)
+        .single();
+
+      if (comp) {
+        setCompany(comp);
+
+        // Fetch company's vehicles
+        const { data: vehs } = await supabase
+          .from("vehicles")
+          .select("*")
+          .eq("company_id", comp.id)
+          .eq("is_active", true)
+          .order("name");
+
+        if (vehs) setVehicles(vehs);
+      }
+
+      setLoading(false);
+    }
+
+    loadData();
+  }, [requestId, router]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
       setContractFile(file);
+      if (file.type.startsWith("image/")) {
+        const url = URL.createObjectURL(file);
+        setFilePreview(url);
+      } else {
+        setFilePreview(null);
+      }
     }
   }
 
+  function clearFile() {
+    if (filePreview) URL.revokeObjectURL(filePreview);
+    setContractFile(null);
+    setFilePreview(null);
+  }
+
+  const isImage = contractFile?.type.startsWith("image/");
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!contractFile) return;
+    if (!contractFile || !company) return;
     setSubmitting(true);
+    setError("");
 
-    // Demo: simulate API call
-    await new Promise((r) => setTimeout(r, 1000));
+    const supabase = createClient();
+
+    // Upload contract file
+    let contractUrl = null;
+    let contractName = null;
+    if (contractFile) {
+      const result = await uploadFile(
+        contractFile,
+        `contracts/${company.id}`
+      );
+      if (result) {
+        contractUrl = result.url;
+        contractName = contractFile.name;
+      }
+    }
+
+    // Insert offer
+    const { error: offerError } = await supabase.from("offers").insert({
+      request_id: requestId,
+      company_id: company.id,
+      vehicle_id: vehicleId,
+      price: parseFloat(price),
+      includes_driver: includesDriver,
+      includes_fuel: includesFuel,
+      message: message || null,
+      valid_until: new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      contract_url: contractUrl,
+      contract_name: contractName,
+    });
+
+    if (offerError) {
+      setError(
+        offerError.message.includes("unique")
+          ? "Ai trimis deja o ofertă pentru această cerere"
+          : offerError.message
+      );
+      setSubmitting(false);
+      return;
+    }
+
     setSubmitting(false);
     setSubmitted(true);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+      </div>
+    );
+  }
+
+  if (!req) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <h2 className="text-xl font-bold text-gray-900">
+          Cererea nu a fost găsită
+        </h2>
+        <Link
+          href="/dashboard/transporter"
+          className="mt-4 inline-block text-primary-500 hover:text-primary-600"
+        >
+          Înapoi la Panou
+        </Link>
+      </div>
+    );
   }
 
   if (submitted) {
@@ -77,8 +199,8 @@ export default function SendOfferPage() {
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Ofertă trimisă!</h2>
         <p className="mt-3 text-gray-600">
-          Oferta ta a fost trimisă clientului. Contractul de transport a fost atașat.
-          Vei fi notificat când clientul acceptă oferta.
+          Oferta ta a fost trimisă clientului. Contractul de transport a fost
+          atașat. Vei fi notificat când clientul acceptă oferta.
         </p>
         <Link
           href="/dashboard/transporter"
@@ -135,7 +257,9 @@ export default function SendOfferPage() {
             <Bus className="h-4 w-4 text-blue-500" />
             <span className="text-gray-600">Tip:</span>
             <span className="font-medium">
-              {VEHICLE_CATEGORIES[req.vehicle_category as keyof typeof VEHICLE_CATEGORIES]?.label || req.vehicle_category}
+              {VEHICLE_CATEGORIES[
+                req.vehicle_category as keyof typeof VEHICLE_CATEGORIES
+              ]?.label || req.vehicle_category || "Orice"}
             </span>
           </div>
         </div>
@@ -149,6 +273,12 @@ export default function SendOfferPage() {
         onSubmit={handleSubmit}
         className="space-y-6 rounded-2xl bg-white p-6 shadow-lg sm:p-8"
       >
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
         {/* Vehicle Selection */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -163,31 +293,49 @@ export default function SendOfferPage() {
               className="w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
             >
               <option value="">Selectează vehiculul</option>
-              {DEMO_VEHICLES.map((v) => (
+              {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name} ({v.seats} locuri -{" "}
-                  {VEHICLE_CATEGORIES[v.category as keyof typeof VEHICLE_CATEGORIES]?.label})
+                  {
+                    VEHICLE_CATEGORIES[
+                      v.category as keyof typeof VEHICLE_CATEGORIES
+                    ]?.label
+                  }
+                  )
                 </option>
               ))}
             </select>
           </div>
+          {vehicles.length === 0 && !loading && (
+            <p className="mt-2 text-sm text-amber-600">
+              Nu ai vehicule adăugate.{" "}
+              <Link
+                href="/dashboard/transporter/add-vehicle"
+                className="underline"
+              >
+                Adaugă un vehicul
+              </Link>{" "}
+              mai întâi.
+            </p>
+          )}
         </div>
 
-        {/* Price */}
+        {/* Price per km */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
-            Preț total (RON)
+            Preț per km (RON)
           </label>
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
               type="number"
-              min="1"
+              min="0.1"
+              step="0.1"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               required
               className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              placeholder="ex: 2500"
+              placeholder="ex: 3.5"
             />
           </div>
         </div>
@@ -231,7 +379,7 @@ export default function SendOfferPage() {
         {/* Contract Upload */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
-            Contract de Transport (PDF) *
+            Contract de Transport *
           </label>
           <div
             className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
@@ -241,34 +389,56 @@ export default function SendOfferPage() {
             }`}
           >
             {contractFile ? (
-              <div className="flex items-center justify-center gap-3">
-                <FileText className="h-8 w-8 text-green-500" />
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">
-                    {contractFile.name}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {(contractFile.size / 1024).toFixed(0)} KB
-                  </p>
+              <div className="flex flex-col items-center gap-3">
+                {isImage && filePreview ? (
+                  <img
+                    src={filePreview}
+                    alt="Preview contract"
+                    className="max-h-48 rounded-lg border border-gray-200 object-contain"
+                  />
+                ) : (
+                  <FileText className="h-8 w-8 text-green-500" />
+                )}
+                <div className="flex items-center gap-3">
+                  {isImage ? (
+                    <Image className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-green-500" />
+                  )}
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">
+                      {contractFile.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {(contractFile.size / 1024).toFixed(0)} KB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    className="ml-4 text-sm text-red-500 hover:text-red-700"
+                  >
+                    Șterge
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setContractFile(null)}
-                  className="ml-4 text-sm text-red-500 hover:text-red-700"
-                >
-                  Șterge
-                </button>
               </div>
             ) : (
               <label className="cursor-pointer">
-                <Upload className="mx-auto h-10 w-10 text-gray-400" />
+                <div className="mx-auto flex items-center justify-center gap-2">
+                  <Upload className="h-10 w-10 text-gray-400" />
+                  <Camera className="h-8 w-8 text-gray-400" />
+                </div>
                 <p className="mt-2 text-sm font-medium text-gray-700">
-                  Click pentru a încărca contractul
+                  Încarcă contractul — PDF sau fotografie
                 </p>
-                <p className="mt-1 text-xs text-gray-500">PDF, max 10MB</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  PDF, JPG, PNG — max 10MB. Poți face o poză direct cu
+                  telefonul.
+                </p>
                 <input
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.jpg,.jpeg,.png,image/*"
+                  capture="environment"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -276,8 +446,8 @@ export default function SendOfferPage() {
             )}
           </div>
           <p className="mt-2 text-xs text-gray-500">
-            Contractul va fi vizibil clientului înainte de plată. Clientul trebuie
-            să accepte contractul pentru a putea plăti.
+            Contractul va fi vizibil clientului înainte de plată. Clientul
+            trebuie să accepte contractul pentru a putea plăti.
           </p>
         </div>
 
@@ -285,7 +455,7 @@ export default function SendOfferPage() {
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            disabled={submitting || !contractFile}
+            disabled={submitting || !contractFile || !vehicleId}
             className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-8 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-accent-600 disabled:opacity-50"
           >
             <Send className="h-5 w-5" />

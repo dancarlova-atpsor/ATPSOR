@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
+import { useState, useEffect } from "react";
 import {
   FileText,
   MessageSquare,
@@ -13,52 +14,9 @@ import {
   ChevronRight,
   MapPin,
   Users,
+  Loader2,
 } from "lucide-react";
-
-// Demo data
-const DEMO_REQUESTS = [
-  {
-    id: "r1",
-    pickup_city: "București",
-    dropoff_city: "Brașov",
-    departure_date: "2026-04-15",
-    passengers: 40,
-    status: "active",
-    offers_count: 3,
-    created_at: "2026-04-01",
-  },
-  {
-    id: "r2",
-    pickup_city: "Cluj-Napoca",
-    dropoff_city: "Sibiu",
-    departure_date: "2026-05-01",
-    passengers: 15,
-    status: "pending",
-    offers_count: 0,
-    created_at: "2026-04-02",
-  },
-  {
-    id: "r3",
-    pickup_city: "Timișoara",
-    dropoff_city: "Arad",
-    departure_date: "2026-03-20",
-    passengers: 25,
-    status: "fulfilled",
-    offers_count: 5,
-    created_at: "2026-03-15",
-  },
-];
-
-const DEMO_BOOKINGS = [
-  {
-    id: "b1",
-    company_name: "TransExpress SRL",
-    route: "București → Brașov",
-    date: "2026-04-15",
-    total_price: 2500,
-    status: "confirmed",
-  },
-];
+import { createClient } from "@/lib/supabase/client";
 
 const statusConfig = {
   pending: {
@@ -90,6 +48,58 @@ const statusConfig = {
 
 export default function ClientDashboard() {
   const t = useTranslations();
+  const router = useRouter();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/auth/login");
+        return;
+      }
+
+      const [requestsRes, bookingsRes] = await Promise.all([
+        supabase
+          .from("transport_requests")
+          .select("*")
+          .eq("client_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("bookings")
+          .select(
+            "*, offer:offers(*, request:transport_requests(*)), company:companies(name)"
+          )
+          .eq("client_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (requestsRes.data) setRequests(requestsRes.data);
+      if (bookingsRes.data) setBookings(bookingsRes.data);
+      setLoading(false);
+    }
+
+    loadData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+      </div>
+    );
+  }
+
+  const totalOffers = requests.reduce(
+    (sum, r) => sum + (r.offers_count || 0),
+    0
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -114,7 +124,7 @@ export default function ClientDashboard() {
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold">{DEMO_REQUESTS.length}</div>
+              <div className="text-2xl font-bold">{requests.length}</div>
               <div className="text-sm text-gray-500">
                 {t("dashboard.client.myRequests")}
               </div>
@@ -127,9 +137,7 @@ export default function ClientDashboard() {
               <MessageSquare className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold">
-                {DEMO_REQUESTS.reduce((sum, r) => sum + r.offers_count, 0)}
-              </div>
+              <div className="text-2xl font-bold">{totalOffers}</div>
               <div className="text-sm text-gray-500">Oferte primite</div>
             </div>
           </div>
@@ -140,7 +148,7 @@ export default function ClientDashboard() {
               <CalendarCheck className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold">{DEMO_BOOKINGS.length}</div>
+              <div className="text-2xl font-bold">{bookings.length}</div>
               <div className="text-sm text-gray-500">
                 {t("dashboard.client.myBookings")}
               </div>
@@ -154,53 +162,69 @@ export default function ClientDashboard() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           {t("dashboard.client.myRequests")}
         </h2>
-        <div className="space-y-3">
-          {DEMO_REQUESTS.map((request) => {
-            const statusInfo =
-              statusConfig[request.status as keyof typeof statusConfig];
-            const StatusIcon = statusInfo.icon;
+        {requests.length === 0 ? (
+          <div className="rounded-xl bg-white p-8 text-center shadow-md">
+            <FileText className="mx-auto h-10 w-10 text-gray-300" />
+            <p className="mt-3 text-gray-500">
+              Nu ai cereri de transport încă.
+            </p>
+            <Link
+              href="/request"
+              className="mt-3 inline-block text-sm font-medium text-primary-500 hover:text-primary-600"
+            >
+              Creează prima cerere →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((request) => {
+              const statusInfo =
+                statusConfig[request.status as keyof typeof statusConfig] ||
+                statusConfig.pending;
+              const StatusIcon = statusInfo.icon;
 
-            return (
-              <Link
-                key={request.id}
-                href={`/request/${request.id}/offers` as any}
-                className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md transition-shadow hover:shadow-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-50">
-                    <MapPin className="h-6 w-6 text-primary-500" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">
-                      {request.pickup_city} → {request.dropoff_city}
+              return (
+                <Link
+                  key={request.id}
+                  href={`/request/${request.id}/offers` as any}
+                  className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md transition-shadow hover:shadow-lg"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-50">
+                      <MapPin className="h-6 w-6 text-primary-500" />
                     </div>
-                    <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
-                      <span>{request.departure_date}</span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />
-                        {request.passengers} pers.
-                      </span>
-                      {request.offers_count > 0 && (
-                        <span className="font-medium text-primary-500">
-                          {request.offers_count} oferte
+                    <div>
+                      <div className="font-semibold text-gray-900">
+                        {request.pickup_city} → {request.dropoff_city}
+                      </div>
+                      <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
+                        <span>{request.departure_date}</span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" />
+                          {request.passengers} pers.
                         </span>
-                      )}
+                        {request.offers_count > 0 && (
+                          <span className="font-medium text-primary-500">
+                            {request.offers_count} oferte
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${statusInfo.color}`}
-                  >
-                    <StatusIcon className="h-3.5 w-3.5" />
-                    {statusInfo.label}
-                  </span>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${statusInfo.color}`}
+                    >
+                      <StatusIcon className="h-3.5 w-3.5" />
+                      {statusInfo.label}
+                    </span>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* My Bookings */}
@@ -208,32 +232,41 @@ export default function ClientDashboard() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           {t("dashboard.client.myBookings")}
         </h2>
-        <div className="space-y-3">
-          {DEMO_BOOKINGS.map((booking) => (
-            <div
-              key={booking.id}
-              className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md"
-            >
-              <div>
-                <div className="font-semibold text-gray-900">
-                  {booking.route}
+        {bookings.length === 0 ? (
+          <div className="rounded-xl bg-white p-8 text-center shadow-md">
+            <CalendarCheck className="mx-auto h-10 w-10 text-gray-300" />
+            <p className="mt-3 text-gray-500">Nu ai rezervări încă.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {bookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md"
+              >
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {booking.offer?.request?.pickup_city} →{" "}
+                    {booking.offer?.request?.dropoff_city}
+                  </div>
+                  <div className="mt-1 text-sm text-gray-500">
+                    {booking.company?.name} &middot;{" "}
+                    {booking.offer?.request?.departure_date}
+                  </div>
                 </div>
-                <div className="mt-1 text-sm text-gray-500">
-                  {booking.company_name} &middot; {booking.date}
+                <div className="text-right">
+                  <div className="text-lg font-bold text-gray-900">
+                    {booking.total_price} RON
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    Confirmată
+                  </span>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-lg font-bold text-gray-900">
-                  {booking.total_price} RON
-                </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600">
-                  <CheckCircle className="h-3 w-3" />
-                  Confirmată
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

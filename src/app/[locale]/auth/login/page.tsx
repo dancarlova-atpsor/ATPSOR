@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 import { useState } from "react";
 import { Bus, Mail, Lock, Chrome, Facebook } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
@@ -18,26 +19,56 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    // Demo mode - simulate login
-    setTimeout(() => {
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) {
+      setError(
+        authError.message === "Invalid login credentials"
+          ? "Email sau parolă incorectă"
+          : authError.message
+      );
       setLoading(false);
+      return;
+    }
+
+    // Fetch profile for role-based redirect
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      const dashboard =
+        profile?.role === "transporter"
+          ? "/dashboard/transporter"
+          : "/dashboard/client";
+      router.push(dashboard);
+    } else {
       router.push("/dashboard/client");
-    }, 800);
+    }
   }
 
-  function handleOAuthLogin(provider: "google" | "facebook") {
-    // Demo mode - simulate OAuth
-    router.push("/dashboard/client");
+  async function handleOAuthLogin(provider: "google" | "facebook") {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
   }
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Demo banner */}
-        <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-center text-sm text-amber-700">
-          Versiune demonstrativ&#259; &mdash; autentificarea va fi activat&#259; dup&#259; configurarea Supabase
-        </div>
-
         {/* Logo */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary-500 text-white">
@@ -127,7 +158,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-lg bg-primary-500 py-3 text-base font-semibold text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
           >
-            {loading ? "Se conecteaz\u0103..." : t("loginTitle")}
+            {loading ? "Se conectează..." : t("loginTitle")}
           </button>
         </form>
 

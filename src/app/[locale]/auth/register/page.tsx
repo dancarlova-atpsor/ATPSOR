@@ -3,7 +3,19 @@
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 import { useState } from "react";
-import { Bus, Mail, Lock, User, Phone, Chrome, Facebook } from "lucide-react";
+import {
+  Bus,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  Chrome,
+  Facebook,
+  Building2,
+  MapPin,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { ROMANIAN_COUNTIES } from "@/types/database";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
@@ -18,6 +30,14 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Company fields (transporter only)
+  const [companyName, setCompanyName] = useState("");
+  const [companyCui, setCompanyCui] = useState("");
+  const [companyCity, setCompanyCity] = useState("");
+  const [companyCounty, setCompanyCounty] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -27,20 +47,66 @@ export default function RegisterPage() {
       return;
     }
 
+    if (password.length < 6) {
+      setError("Parola trebuie să aibă minimum 6 caractere");
+      return;
+    }
+
+    if (role === "transporter" && (!companyName || !companyCui || !companyCity || !companyCounty)) {
+      setError("Completează toate câmpurile obligatorii ale companiei");
+      return;
+    }
+
     setLoading(true);
 
-    // Demo mode - simulate registration
-    setTimeout(() => {
+    const supabase = createClient();
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, role, phone },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (authError) {
+      setError(authError.message);
       setLoading(false);
-      setSuccess(true);
-    }, 800);
+      return;
+    }
+
+    // If transporter, create company
+    if (role === "transporter" && signUpData.user) {
+      const { error: companyError } = await supabase.from("companies").insert({
+        owner_id: signUpData.user.id,
+        name: companyName,
+        cui: companyCui,
+        license_number: "-",
+        address: companyAddress || companyCity,
+        city: companyCity,
+        county: companyCounty,
+        phone: companyPhone || phone,
+        email: email,
+      });
+
+      if (companyError) {
+        console.error("Company creation error:", companyError);
+        // Don't fail registration, company can be created later
+      }
+    }
+
+    setLoading(false);
+    setSuccess(true);
   }
 
-  function handleOAuthLogin(provider: "google" | "facebook") {
-    // Demo mode
-    router.push(
-      role === "transporter" ? "/dashboard/transporter" : "/dashboard/client"
-    );
+  async function handleOAuthLogin(provider: "google" | "facebook") {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
   }
 
   if (success) {
@@ -54,34 +120,15 @@ export default function RegisterPage() {
             Cont creat cu succes!
           </h2>
           <p className="mt-3 text-gray-600">
-            {role === "transporter" ? (
-              <>
-                Contul t&#259;u de transportator a fost creat. &#206;n versiunea final&#259;,
-                vei primi un email de confirmare la <strong>{email}</strong>.
-              </>
-            ) : (
-              <>
-                Contul t&#259;u de client a fost creat. &#206;n versiunea final&#259;, vei
-                primi un email de confirmare la <strong>{email}</strong>.
-              </>
-            )}
+            Verifică email-ul la <strong>{email}</strong> pentru a confirma
+            contul. După confirmare, te poți autentifica.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href={
-                role === "transporter"
-                  ? "/dashboard/transporter"
-                  : "/dashboard/client"
-              }
-              className="rounded-lg bg-primary-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
-            >
-              Mergi la Panou
-            </Link>
+          <div className="mt-6">
             <Link
               href="/auth/login"
-              className="rounded-lg border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg bg-primary-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
             >
-              &#206;napoi la Autentificare
+              Mergi la Autentificare
             </Link>
           </div>
         </div>
@@ -92,12 +139,6 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Demo banner */}
-        <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-center text-sm text-amber-700">
-          Versiune demonstrativ&#259; &mdash; &#238;nregistrarea va fi activat&#259; dup&#259;
-          configurarea Supabase
-        </div>
-
         {/* Logo */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary-500 text-white">
@@ -217,6 +258,109 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          {/* Company fields - shown only for transporters */}
+          {role === "transporter" && (
+            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-700">
+                <Building2 className="h-4 w-4" />
+                Date companie transport
+              </h3>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Nume companie *
+                </label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  required={role === "transporter"}
+                  className="w-full rounded-lg border border-gray-300 py-2.5 px-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  placeholder="SC Transport SRL"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  CUI *
+                </label>
+                <input
+                  type="text"
+                  value={companyCui}
+                  onChange={(e) => setCompanyCui(e.target.value)}
+                  required={role === "transporter"}
+                  className="w-full rounded-lg border border-gray-300 py-2.5 px-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  placeholder="RO12345678"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Oraș *
+                  </label>
+                  <input
+                    type="text"
+                    value={companyCity}
+                    onChange={(e) => setCompanyCity(e.target.value)}
+                    required={role === "transporter"}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 px-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Județ *
+                  </label>
+                  <select
+                    value={companyCounty}
+                    onChange={(e) => setCompanyCounty(e.target.value)}
+                    required={role === "transporter"}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 px-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  >
+                    <option value="">Selectează</option>
+                    {ROMANIAN_COUNTIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Adresă sediu
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    placeholder="Str. Exemplu nr. 1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Telefon companie
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={companyPhone}
+                    onChange={(e) => setCompanyPhone(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    placeholder="+40 XXX XXX XXX"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("password")}
@@ -256,7 +400,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full rounded-lg bg-primary-500 py-3 text-base font-semibold text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
           >
-            {loading ? "Se creeaz&#259; contul..." : t("registerTitle")}
+            {loading ? "Se creează contul..." : t("registerTitle")}
           </button>
         </form>
 

@@ -2,21 +2,60 @@
 
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/routing";
-import { useState } from "react";
-import { Menu, X, Bus, Globe, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, X, Bus, Globe, User, LogOut, LayoutDashboard } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export function Header() {
   const t = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setIsLoggedIn(true);
+        setUserEmail(user.email || null);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        if (profile) setUserRole(profile.role);
+      }
+    }
+
+    checkAuth();
+  }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    setUserRole(null);
+    setUserEmail(null);
+    router.push("/");
+  }
+
+  function getDashboardHref() {
+    if (userRole === "admin") return "/dashboard/admin" as const;
+    if (userRole === "transporter") return "/dashboard/transporter" as const;
+    return "/dashboard/client" as const;
+  }
 
   const navigation = [
     { name: t("nav.home"), href: "/" as const },
     { name: t("nav.transporters"), href: "/transporters" as const },
     { name: t("nav.request"), href: "/request" as const },
-    { name: "Demo Client", href: "/dashboard/client" as const },
-    { name: "Demo Transportator", href: "/dashboard/transporter" as const },
     { name: t("nav.about"), href: "/about" as const },
   ];
 
@@ -55,6 +94,23 @@ export function Header() {
               {item.name}
             </Link>
           ))}
+          {isLoggedIn && (
+            <Link
+              href={getDashboardHref()}
+              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary-500 ${
+                pathname.includes("/dashboard")
+                  ? "text-primary-500"
+                  : "text-gray-600"
+              }`}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              {userRole === "admin"
+                ? "Admin"
+                : userRole === "transporter"
+                  ? "Panou"
+                  : "Dashboard"}
+            </Link>
+          )}
         </div>
 
         {/* Right side */}
@@ -70,20 +126,34 @@ export function Header() {
             <span className="hidden sm:inline">RO / EN</span>
           </button>
 
-          {/* Auth buttons */}
-          <Link
-            href="/auth/login"
-            className="hidden items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 sm:flex"
-          >
-            <User className="h-4 w-4" />
-            {t("common.login")}
-          </Link>
-          <Link
-            href="/auth/register"
-            className="hidden rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 sm:block"
-          >
-            {t("common.register")}
-          </Link>
+          {isLoggedIn ? (
+            <div className="hidden items-center gap-2 sm:flex">
+              <span className="text-xs text-gray-500">{userEmail}</span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+              >
+                <LogOut className="h-4 w-4" />
+                Ieșire
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/auth/login"
+                className="hidden items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 sm:flex"
+              >
+                <User className="h-4 w-4" />
+                {t("common.login")}
+              </Link>
+              <Link
+                href="/auth/register"
+                className="hidden rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 sm:block"
+              >
+                {t("common.register")}
+              </Link>
+            </>
+          )}
 
           {/* Mobile menu button */}
           <button
@@ -117,21 +187,46 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
+            {isLoggedIn && (
+              <Link
+                href={getDashboardHref()}
+                className="block rounded-md px-3 py-2 text-base font-medium text-gray-600 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <LayoutDashboard className="mr-2 inline h-4 w-4" />
+                {userRole === "admin" ? "Admin Panel" : "Dashboard"}
+              </Link>
+            )}
             <hr className="my-2" />
-            <Link
-              href="/auth/login"
-              className="block rounded-md px-3 py-2 text-base font-medium text-gray-600 hover:bg-gray-50"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {t("common.login")}
-            </Link>
-            <Link
-              href="/auth/register"
-              className="block rounded-md bg-primary-500 px-3 py-2 text-center text-base font-medium text-white"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {t("common.register")}
-            </Link>
+            {isLoggedIn ? (
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                className="block w-full rounded-md px-3 py-2 text-left text-base font-medium text-gray-600 hover:bg-gray-50"
+              >
+                <LogOut className="mr-2 inline h-4 w-4" />
+                Ieșire ({userEmail})
+              </button>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="block rounded-md px-3 py-2 text-base font-medium text-gray-600 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t("common.login")}
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="block rounded-md bg-primary-500 px-3 py-2 text-center text-base font-medium text-white"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t("common.register")}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
