@@ -117,7 +117,7 @@ export const TARIFFS: Record<string, number> = {
 };
 
 export const TVA_RATE = 0.21;
-export const PLATFORM_FEE_RATE = 0.03;
+export const PLATFORM_FEE_RATE = 0.05;
 export const MIN_KM_PER_DAY = 200;
 
 export interface PriceCalculation {

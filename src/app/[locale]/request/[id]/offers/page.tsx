@@ -28,7 +28,7 @@ import {
 import { VEHICLE_CATEGORIES } from "@/types/database";
 import type { TransportRequest, Offer, Company, Vehicle } from "@/types/database";
 
-const PLATFORM_FEE_PERCENT = 3; // 3% comision ATPSOR inclus in pret
+const PLATFORM_FEE_PERCENT = 5; // 5% comision ATPSOR inclus in pret
 const TVA_PERCENT = 21; // TVA Romania
 
 // Calculate billable km per day (min 200)

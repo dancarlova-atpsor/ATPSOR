@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 import { useState } from "react";
 import {
   Bus,
@@ -13,13 +13,13 @@ import {
   Facebook,
   Building2,
   MapPin,
+  CheckCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ROMANIAN_COUNTIES } from "@/types/database";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
-  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -46,9 +46,8 @@ export default function RegisterPage() {
       setError("Parolele nu se potrivesc");
       return;
     }
-
     if (password.length < 6) {
-      setError("Parola trebuie să aibă minimum 6 caractere");
+      setError("Parola trebuie să aibă cel puțin 6 caractere");
       return;
     }
 
@@ -59,54 +58,67 @@ export default function RegisterPage() {
 
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: signUpData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, role, phone },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
-
-    // If transporter, create company
-    if (role === "transporter" && signUpData.user) {
-      const { error: companyError } = await supabase.from("companies").insert({
-        owner_id: signUpData.user.id,
-        name: companyName,
-        cui: companyCui,
-        license_number: "-",
-        address: companyAddress || companyCity,
-        city: companyCity,
-        county: companyCounty,
-        phone: companyPhone || phone,
-        email: email,
+    try {
+      const supabase = createClient();
+      const { data: signUpData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName, role, phone },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
-      if (companyError) {
-        console.error("Company creation error:", companyError);
-        // Don't fail registration, company can be created later
+      if (authError) {
+        setError(
+          authError.message === "User already registered"
+            ? "Acest email este deja înregistrat"
+            : authError.message
+        );
+        setLoading(false);
+        return;
       }
-    }
 
-    setLoading(false);
-    setSuccess(true);
+      // If transporter, create company
+      if (role === "transporter" && signUpData.user) {
+        const { error: companyError } = await supabase.from("companies").insert({
+          owner_id: signUpData.user.id,
+          name: companyName,
+          cui: companyCui,
+          license_number: "-",
+          address: companyAddress || companyCity,
+          city: companyCity,
+          county: companyCounty,
+          phone: companyPhone || phone,
+          email: email,
+        });
+
+        if (companyError) {
+          console.error("Company creation error:", companyError);
+          // Don't fail registration, company can be created later
+        }
+      }
+
+      setLoading(false);
+      setSuccess(true);
+    } catch {
+      setError("Eroare la înregistrare. Verifică conexiunea.");
+      setLoading(false);
+    }
   }
 
   async function handleOAuthLogin(provider: "google" | "facebook") {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    try {
+      const supabase = createClient();
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    } catch {
+      setError("Eroare la autentificare.");
+    }
   }
 
   if (success) {
@@ -114,14 +126,12 @@ export default function RegisterPage() {
       <div className="flex min-h-[80vh] items-center justify-center px-4 py-12">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
-            <Mail className="h-7 w-7" />
+            <CheckCircle className="h-7 w-7" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Cont creat cu succes!
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">Cont creat cu succes!</h2>
           <p className="mt-3 text-gray-600">
-            Verifică email-ul la <strong>{email}</strong> pentru a confirma
-            contul. După confirmare, te poți autentifica.
+            Am trimis un email de confirmare la <strong>{email}</strong>.
+            Verifică inbox-ul (și folderul Spam) și clickă pe link pentru a-ți activa contul.
           </p>
           <div className="mt-6">
             <Link
@@ -144,117 +154,75 @@ export default function RegisterPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary-500 text-white">
             <Bus className="h-8 w-8" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {t("registerTitle")}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("registerTitle")}</h1>
           <p className="mt-2 text-gray-600">{t("registerSubtitle")}</p>
         </div>
 
-        {/* Social Login */}
         <div className="space-y-3">
-          <button
-            onClick={() => handleOAuthLogin("google")}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-          >
+          <button onClick={() => handleOAuthLogin("google")}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
             <Chrome className="h-5 w-5" />
             {t("loginWithGoogle")}
           </button>
-          <button
-            onClick={() => handleOAuthLogin("facebook")}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-          >
+          <button onClick={() => handleOAuthLogin("facebook")}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
             <Facebook className="h-5 w-5 text-blue-600" />
             {t("loginWithFacebook")}
           </button>
         </div>
 
-        {/* Divider */}
         <div className="my-6 flex items-center gap-4">
           <div className="flex-1 border-t border-gray-300" />
           <span className="text-sm text-gray-500">{t("orContinueWith")}</span>
           <div className="flex-1 border-t border-gray-300" />
         </div>
 
-        {/* Register Form */}
         <form onSubmit={handleRegister} className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </div>
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
           )}
 
-          {/* Role Selection */}
           <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setRole("client")}
+            <button type="button" onClick={() => setRole("client")}
               className={`rounded-lg border-2 p-3 text-center text-sm font-medium transition-colors ${
-                role === "client"
-                  ? "border-primary-500 bg-primary-50 text-primary-600"
-                  : "border-gray-200 text-gray-600 hover:border-gray-300"
-              }`}
-            >
+                role === "client" ? "border-primary-500 bg-primary-50 text-primary-600" : "border-gray-200 text-gray-600 hover:border-gray-300"
+              }`}>
               {t("roleClient")}
             </button>
-            <button
-              type="button"
-              onClick={() => setRole("transporter")}
+            <button type="button" onClick={() => setRole("transporter")}
               className={`rounded-lg border-2 p-3 text-center text-sm font-medium transition-colors ${
-                role === "transporter"
-                  ? "border-primary-500 bg-primary-50 text-primary-600"
-                  : "border-gray-200 text-gray-600 hover:border-gray-300"
-              }`}
-            >
+                role === "transporter" ? "border-primary-500 bg-primary-50 text-primary-600" : "border-gray-200 text-gray-600 hover:border-gray-300"
+              }`}>
               {t("roleTransporter")}
             </button>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("fullName")}
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("fullName")}</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              />
+              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required
+                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("email")}
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("email")}</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                placeholder="email@exemplu.ro"
-              />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                placeholder="email@exemplu.ro" />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("phone")}
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("phone")}</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                placeholder="+40 7XX XXX XXX"
-              />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                placeholder="+40 7XX XXX XXX" />
             </div>
           </div>
 
@@ -362,36 +330,20 @@ export default function RegisterPage() {
           )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("password")}
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("password")}</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
+                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("confirmPassword")}
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t("confirmPassword")}</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              />
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6}
+                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
             </div>
           </div>
 
@@ -406,10 +358,7 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-gray-600">
           {t("hasAccount")}{" "}
-          <Link
-            href="/auth/login"
-            className="font-medium text-primary-500 hover:text-primary-600"
-          >
+          <Link href="/auth/login" className="font-medium text-primary-500 hover:text-primary-600">
             {t("loginTitle")}
           </Link>
         </p>
