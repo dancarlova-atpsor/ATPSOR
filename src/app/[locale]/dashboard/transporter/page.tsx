@@ -68,7 +68,7 @@ export default function TransporterDashboard() {
   const [companyForm, setCompanyForm] = useState({
     name: "",
     cui: "",
-    transport_license: "",
+    license_number: "",
     address: "",
     city: "",
     county: "",
@@ -269,7 +269,7 @@ export default function TransporterDashboard() {
         owner_id: user.id,
         name: companyForm.name.trim(),
         cui: companyForm.cui.trim(),
-        transport_license: companyForm.transport_license.trim(),
+        license_number: companyForm.license_number.trim(),
         address: companyForm.address.trim(),
         city: companyForm.city.trim(),
         county: companyForm.county,
@@ -352,11 +352,11 @@ export default function TransporterDashboard() {
                 <input
                   type="text"
                   required
-                  value={companyForm.transport_license}
+                  value={companyForm.license_number}
                   onChange={(e) =>
                     setCompanyForm((prev) => ({
                       ...prev,
-                      transport_license: e.target.value,
+                      license_number: e.target.value,
                     }))
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
