@@ -59,7 +59,7 @@ export function TransportersList() {
       // Fetch companies, pricing, and vehicle counts in parallel
       const [companiesRes, pricingRes, vehiclesRes] = await Promise.all([
         supabase
-          .from("companies")
+          .from("companii")
           .select(
             "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url, pickup_cities"
           )
@@ -67,10 +67,10 @@ export function TransportersList() {
           .order("rating", { ascending: false })
           .order("name"),
         supabase
-          .from("company_pricing")
+          .from("prețuri_companie")
           .select("company_id, vehicle_category, price_per_km"),
         supabase
-          .from("vehicles")
+          .from("vehicule")
           .select("company_id")
           .eq("is_active", true),
       ]);

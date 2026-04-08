@@ -88,7 +88,7 @@ export default function RegisterPage() {
 
       // If transporter, create company
       if (role === "transporter" && signUpData.user) {
-        const { error: companyError } = await supabase.from("companies").insert({
+        const { error: companyError } = await supabase.from("companii").insert({
           owner_id: signUpData.user.id,
           name: companyName,
           cui: companyCui,

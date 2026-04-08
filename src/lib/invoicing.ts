@@ -42,7 +42,7 @@ async function saveInvoice(
 ) {
   try {
     const supabase = await createClient();
-    await supabase.from("invoices").upsert(
+    await supabase.from("facturi").upsert(
       {
         booking_id: bookingId,
         invoice_type: invoiceType,
@@ -73,7 +73,7 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
   try {
     const supabase = await createClient();
     const { data: existing } = await supabase
-      .from("invoices")
+      .from("facturi")
       .select("invoice_type, status")
       .eq("booking_id", params.bookingId)
       .eq("status", "issued");

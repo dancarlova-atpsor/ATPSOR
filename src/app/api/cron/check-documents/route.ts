@@ -36,8 +36,8 @@ export async function GET(request: Request) {
 
     // Fetch expiring company documents
     const { data: companyDocs, error: companyDocsError } = await supabase
-      .from("company_documents")
-      .select("*, company:companies(id, name, email)")
+      .from("documente_companie")
+      .select("*, company:companii(id, name, email)")
       .gte("expiry_date", todayStr)
       .lte("expiry_date", in15DaysStr);
 
@@ -47,8 +47,8 @@ export async function GET(request: Request) {
 
     // Fetch expiring vehicle documents
     const { data: vehicleDocs, error: vehicleDocsError } = await supabase
-      .from("vehicle_documents")
-      .select("*, company:companies(id, name, email), vehicle:vehicles(name)")
+      .from("documente_vehicul")
+      .select("*, company:companii(id, name, email), vehicle:vehicule(name)")
       .gte("expiry_date", todayStr)
       .lte("expiry_date", in15DaysStr);
 

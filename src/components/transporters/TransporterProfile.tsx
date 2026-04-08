@@ -45,12 +45,12 @@ export function TransporterProfile() {
 
       const [companyRes, vehiclesRes] = await Promise.all([
         supabase
-          .from("companies")
+          .from("companii")
           .select("*")
           .eq("id", companyId)
           .single(),
         supabase
-          .from("vehicles")
+          .from("vehicule")
           .select("*")
           .eq("company_id", companyId)
           .eq("is_active", true)

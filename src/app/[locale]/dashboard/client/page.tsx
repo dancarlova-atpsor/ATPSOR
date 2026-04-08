@@ -69,14 +69,14 @@ export default function ClientDashboard() {
 
       const [requestsRes, bookingsRes] = await Promise.all([
         supabase
-          .from("transport_requests")
+          .from("cereri_de_transport")
           .select("*")
           .eq("client_id", user.id)
           .order("created_at", { ascending: false }),
         supabase
-          .from("bookings")
+          .from("rezervări")
           .select(
-            "*, offer:offers(*, request:transport_requests(*)), company:companies(name)"
+            "*, offer:oferte(*, request:cereri_de_transport(*)), company:companii(name)"
           )
           .eq("client_id", user.id)
           .order("created_at", { ascending: false }),

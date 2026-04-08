@@ -90,7 +90,7 @@ export default function RequestOffersPage() {
 
       // Fetch the request
       const { data: reqData, error: reqError } = await supabase
-        .from("transport_requests")
+        .from("cereri_de_transport")
         .select("*")
         .eq("id", id)
         .single();
@@ -105,8 +105,8 @@ export default function RequestOffersPage() {
 
       // Fetch offers with joins
       const { data: offersData, error: offersError } = await supabase
-        .from("offers")
-        .select("*, company:companies(*), vehicle:vehicles(*)")
+        .from("oferte")
+        .select("*, company:companii(*), vehicle:vehicule(*)")
         .eq("request_id", id)
         .eq("status", "pending")
         .order("price", { ascending: true });

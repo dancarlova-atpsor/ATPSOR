@@ -191,7 +191,7 @@ export async function POST(request: Request) {
       }
 
       const { data: newRequest, error: dbError } = await supabase
-        .from("transport_requests")
+        .from("cereri_de_transport")
         .insert(insertData)
         .select("id")
         .single();
