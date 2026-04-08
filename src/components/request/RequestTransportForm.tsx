@@ -78,6 +78,9 @@ export function RequestTransportForm() {
   const [selected, setSelected] = useState<TransporterOption | null>(null);
 
   // Step 3 - billing + contact
+  const [billingType, setBillingType] = useState<"pf" | "pj">("pf");
+  const [billingCompanyName, setBillingCompanyName] = useState("");
+  const [billingCui, setBillingCui] = useState("");
   const [billingFirstName, setBillingFirstName] = useState("");
   const [billingLastName, setBillingLastName] = useState("");
   const [billingStreet, setBillingStreet] = useState("");
@@ -330,7 +333,12 @@ export function RequestTransportForm() {
           totalKm: selected.totalKmBillable,
           pricePerKm: selected.pricePerKm,
           billingData: {
-            name: `${billingLastName} ${billingFirstName}`.trim(),
+            type: billingType,
+            name: billingType === "pj"
+              ? billingCompanyName
+              : `${billingLastName} ${billingFirstName}`.trim(),
+            cui: billingType === "pj" ? billingCui : undefined,
+            companyName: billingType === "pj" ? billingCompanyName : undefined,
             firstName: billingFirstName,
             lastName: billingLastName,
             street: billingStreet,
@@ -677,19 +685,66 @@ export function RequestTransportForm() {
               <Calculator className="h-5 w-5 text-primary-500" />
               Date facturare
             </h3>
+
+            {/* Toggle PF / PJ */}
+            <div className="mb-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBillingType("pf")}
+                className={`flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-medium transition ${
+                  billingType === "pf"
+                    ? "border-primary-500 bg-primary-50 text-primary-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                Persoană fizică
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingType("pj")}
+                className={`flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-medium transition ${
+                  billingType === "pj"
+                    ? "border-primary-500 bg-primary-50 text-primary-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                Persoană juridică
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Nume *</label>
-                <input type="text" value={billingLastName} onChange={(e) => setBillingLastName(e.target.value)} required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
-                  placeholder="Popescu" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Prenume *</label>
-                <input type="text" value={billingFirstName} onChange={(e) => setBillingFirstName(e.target.value)} required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
-                  placeholder="Ion" />
-              </div>
+              {billingType === "pj" && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">Nume firmă *</label>
+                    <input type="text" value={billingCompanyName} onChange={(e) => setBillingCompanyName(e.target.value)} required
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
+                      placeholder="SC Exemplu SRL" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">CUI *</label>
+                    <input type="text" value={billingCui} onChange={(e) => setBillingCui(e.target.value)} required
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
+                      placeholder="RO12345678" />
+                  </div>
+                </>
+              )}
+              {billingType === "pf" && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">Nume *</label>
+                    <input type="text" value={billingLastName} onChange={(e) => setBillingLastName(e.target.value)} required
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
+                      placeholder="Popescu" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">Prenume *</label>
+                    <input type="text" value={billingFirstName} onChange={(e) => setBillingFirstName(e.target.value)} required
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
+                      placeholder="Ion" />
+                  </div>
+                </>
+              )}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">Strada *</label>
                 <input type="text" value={billingStreet} onChange={(e) => setBillingStreet(e.target.value)} required
