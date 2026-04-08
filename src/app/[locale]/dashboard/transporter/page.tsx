@@ -24,7 +24,9 @@ import {
   Unlock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { VEHICLE_CATEGORIES } from "@/types/database";
+import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
+import BookingLinkForm from "@/components/transporter/BookingLinkForm";
+import { DocumentUpload } from "@/components/transporter/DocumentUpload";
 
 const VEHICLE_DOC_TYPES = [
   { type: "vehicle_registration_itp", label: "Talon cu ITP valabil" },
@@ -60,6 +62,21 @@ export default function TransporterDashboard() {
   const [savingBlock, setSavingBlock] = useState(false);
   const [pricing, setPricing] = useState<any[]>([]);
   const [savingPricing, setSavingPricing] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  // Company creation form state
+  const [companyForm, setCompanyForm] = useState({
+    name: "",
+    cui: "",
+    transport_license: "",
+    address: "",
+    city: "",
+    county: "",
+    phone: "",
+    email: "",
+  });
+  const [creatingCompany, setCreatingCompany] = useState(false);
+  const [companyError, setCompanyError] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -72,6 +89,9 @@ export default function TransporterDashboard() {
         router.push("/auth/login");
         return;
       }
+
+      setUser(user);
+      setCompanyForm((prev) => ({ ...prev, email: user.email || "" }));
 
       // Get company
       const { data: comp } = await supabase
@@ -236,19 +256,218 @@ export default function TransporterDashboard() {
     );
   }
 
+  async function handleCreateCompany(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+    setCreatingCompany(true);
+    setCompanyError("");
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("companies")
+      .insert({
+        owner_id: user.id,
+        name: companyForm.name.trim(),
+        cui: companyForm.cui.trim(),
+        transport_license: companyForm.transport_license.trim(),
+        address: companyForm.address.trim(),
+        city: companyForm.city.trim(),
+        county: companyForm.county,
+        phone: companyForm.phone.trim(),
+        email: companyForm.email.trim(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      setCompanyError(error.message);
+      setCreatingCompany(false);
+      return;
+    }
+
+    if (data) {
+      setCompany(data);
+    }
+    setCreatingCompany(false);
+  }
+
   if (!company) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-        <Bus className="mx-auto h-12 w-12 text-gray-300" />
-        <h2 className="mt-4 text-xl font-bold text-gray-900">
-          Nu ai o companie de transport
-        </h2>
-        <p className="mt-2 text-gray-500">
-          Creează-ți compania pentru a putea adăuga vehicule și trimite oferte.
-        </p>
-        <p className="mt-1 text-sm text-gray-400">
-          Completează datele firmei la înregistrare sau contactează suportul.
-        </p>
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        <div className="rounded-xl bg-white p-8 shadow-md">
+          <div className="mb-6 text-center">
+            <Bus className="mx-auto h-12 w-12 text-primary-500" />
+            <h2 className="mt-4 text-xl font-bold text-gray-900">
+              Creează compania de transport
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              Completează datele firmei pentru a putea adăuga vehicule și trimite oferte.
+            </p>
+          </div>
+
+          {companyError && (
+            <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              <AlertTriangle className="mr-1 inline h-4 w-4" />
+              {companyError}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateCompany} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Nume firmă *
+              </label>
+              <input
+                type="text"
+                required
+                value={companyForm.name}
+                onChange={(e) =>
+                  setCompanyForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="SC Transport SRL"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  CUI *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={companyForm.cui}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({ ...prev, cui: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="RO12345678"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Nr. licență transport *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={companyForm.transport_license}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({
+                      ...prev,
+                      transport_license: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="LT-12345"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Adresă *
+              </label>
+              <input
+                type="text"
+                required
+                value={companyForm.address}
+                onChange={(e) =>
+                  setCompanyForm((prev) => ({ ...prev, address: e.target.value }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="Str. Exemplu nr. 1"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Oraș *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={companyForm.city}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({ ...prev, city: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="București"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Județ *
+                </label>
+                <select
+                  required
+                  value={companyForm.county}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({ ...prev, county: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="">Selectează județul</option>
+                  {ROMANIAN_COUNTIES.map((county) => (
+                    <option key={county} value={county}>
+                      {county}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Telefon *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={companyForm.phone}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="07xx xxx xxx"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={companyForm.email}
+                  onChange={(e) =>
+                    setCompanyForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="contact@firma.ro"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={creatingCompany}
+              className="mt-2 w-full rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+            >
+              {creatingCompany ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Se creează...
+                </span>
+              ) : (
+                "Creează compania"
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
@@ -623,6 +842,15 @@ export default function TransporterDashboard() {
                       </div>
                     </div>
                   )}
+
+                  {/* Link direct rezervare */}
+                  <div className="border-t border-gray-100 px-5 py-3">
+                    <BookingLinkForm
+                      vehicleId={vehicle.id}
+                      companyId={company.id}
+                      vehicleName={vehicle.name}
+                    />
+                  </div>
                 </div>
               );
             })
@@ -724,42 +952,13 @@ export default function TransporterDashboard() {
               Documente Firmă
             </h3>
             <div className="space-y-3">
-              {companyDocs.length === 0 ? (
-                <div className="rounded-xl bg-white p-5 text-center shadow-md">
-                  <p className="text-sm text-gray-500">
-                    Nu ai încărcat licența de transport.
-                  </p>
-                </div>
-              ) : (
-                companyDocs.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-                        <FileCheck className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          Licență Transport
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Expiră: {doc.expiry_date}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {doc.is_verified && (
-                        <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          Verificat
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+              <DocumentUpload
+                companyId={company.id}
+                documentType="company_license"
+                label="Licență Transport"
+                existingDoc={companyDocs.find((d: any) => d.document_type === "company_license") || null}
+                onUploaded={() => window.location.reload()}
+              />
             </div>
           </div>
 
@@ -782,58 +981,19 @@ export default function TransporterDashboard() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {VEHICLE_DOC_TYPES.filter(
                       (docType) =>
-                        !(
-                          docType.type === "certified_copy" &&
-                          vehicle.seats <= 9
-                        ) &&
-                        !(
-                          docType.type ===
-                            "passenger_luggage_insurance" &&
-                          vehicle.seats <= 9
-                        )
-                    ).map((docType) => {
-                      const existingDoc = vDocs.find(
-                        (d) => d.document_type === docType.type
-                      );
-                      const today =
-                        new Date().toISOString().split("T")[0];
-                      const isValid =
-                        existingDoc &&
-                        existingDoc.expiry_date >= today;
-                      return (
-                        <div
-                          key={docType.type}
-                          className={`rounded-lg border-2 p-4 ${
-                            isValid
-                              ? "border-green-200 bg-green-50"
-                              : "border-dashed border-gray-300 bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {isValid ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                              )}
-                              <span className="text-sm font-medium text-gray-700">
-                                {docType.label}
-                              </span>
-                            </div>
-                            <button className="inline-flex items-center gap-1 rounded bg-white px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50">
-                              <Upload className="h-3 w-3" />
-                              {isValid ? "Actualizează" : "Încarcă"}
-                            </button>
-                          </div>
-                          {isValid && (
-                            <div className="mt-2 text-xs text-green-600">
-                              Valabil până la:{" "}
-                              {existingDoc.expiry_date}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        !(docType.type === "certified_copy" && vehicle.seats <= 9) &&
+                        !(docType.type === "passenger_luggage_insurance" && vehicle.seats <= 9)
+                    ).map((docType) => (
+                      <DocumentUpload
+                        key={docType.type}
+                        companyId={company.id}
+                        vehicleId={vehicle.id}
+                        documentType={docType.type}
+                        label={docType.label}
+                        existingDoc={vDocs.find((d: any) => d.document_type === docType.type) || null}
+                        onUploaded={() => window.location.reload()}
+                      />
+                    ))}
                   </div>
                 </div>
               );
