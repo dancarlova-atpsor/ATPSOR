@@ -162,6 +162,31 @@ export default function AdminDashboard() {
     loadData();
   }
 
+  async function approveCompany(companyId: string) {
+    const supabase = createClient();
+    await supabase
+      .from("companies")
+      .update({
+        is_approved: true,
+        approved_at: new Date().toISOString(),
+        rejection_reason: null,
+      })
+      .eq("id", companyId);
+    loadData();
+  }
+
+  async function rejectCompany(companyId: string, reason: string) {
+    const supabase = createClient();
+    await supabase
+      .from("companies")
+      .update({
+        is_approved: false,
+        rejection_reason: reason,
+      })
+      .eq("id", companyId);
+    loadData();
+  }
+
   async function updateRequestStatus(
     requestId: string,
     newStatus: string
@@ -322,6 +347,46 @@ export default function AdminDashboard() {
       {/* ===== OVERVIEW ===== */}
       {activeTab === "overview" && (
         <div className="space-y-6">
+          {/* Conturi în așteptare */}
+          {companies.filter((c: any) => !c.is_approved).length > 0 && (
+            <div className="rounded-xl border-2 border-yellow-300 bg-yellow-50 p-5">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-yellow-800">
+                <AlertTriangle className="h-5 w-5" />
+                Conturi în așteptare ({companies.filter((c: any) => !c.is_approved).length})
+              </h3>
+              <div className="space-y-3">
+                {companies.filter((c: any) => !c.is_approved).map((company: any) => (
+                  <div key={company.id} className="flex items-center justify-between rounded-lg bg-white p-4 shadow-sm">
+                    <div>
+                      <div className="font-semibold text-gray-900">{company.name}</div>
+                      <div className="mt-1 text-sm text-gray-500">
+                        CUI: {company.cui} | {company.city}, {company.county} | {company.owner?.email}
+                      </div>
+                      {company.phone && <div className="text-sm text-gray-400">Tel: {company.phone}</div>}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => approveCompany(company.id)}
+                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                      >
+                        Aprobă
+                      </button>
+                      <button
+                        onClick={() => {
+                          const reason = prompt("Motivul respingerii:");
+                          if (reason) rejectCompany(company.id, reason);
+                        }}
+                        className="rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-200"
+                      >
+                        Respinge
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Recent requests */}
             <div className="rounded-xl bg-white p-5 shadow-md">

@@ -39,6 +39,38 @@ export default function RegisterPage() {
   const [companyPhone, setCompanyPhone] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
   const [pickupCities, setPickupCities] = useState<string[]>([]);
+  const [cuiVerified, setCuiVerified] = useState(false);
+  const [cuiChecking, setCuiChecking] = useState(false);
+  const [cuiError, setCuiError] = useState("");
+
+  async function checkCUI(cui: string) {
+    if (!cui || cui.length < 2) return;
+    setCuiChecking(true);
+    setCuiError("");
+    setCuiVerified(false);
+    try {
+      const res = await fetch("/api/anaf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cui }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setCuiVerified(true);
+        if (data.denumire && !companyName) {
+          setCompanyName(data.denumire);
+        }
+        if (data.adresa && !companyAddress) {
+          setCompanyAddress(data.adresa);
+        }
+      } else {
+        setCuiError(data.error || "CUI invalid sau negăsit la ANAF");
+      }
+    } catch {
+      setCuiError("Eroare la verificare CUI");
+    }
+    setCuiChecking(false);
+  }
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -103,7 +135,16 @@ export default function RegisterPage() {
 
         if (companyError) {
           console.error("Company creation error:", companyError);
-          // Don't fail registration, company can be created later
+        } else {
+          // Notify admin about new transporter registration
+          fetch("/api/notify-admin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              companyName, cui: companyCui, city: companyCity,
+              county: companyCounty, phone: companyPhone || phone, email,
+            }),
+          }).catch(() => {});
         }
       }
 
@@ -260,14 +301,24 @@ export default function RegisterPage() {
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   CUI *
                 </label>
-                <input
-                  type="text"
-                  value={companyCui}
-                  onChange={(e) => setCompanyCui(e.target.value)}
-                  required={role === "transporter"}
-                  className="w-full rounded-lg border border-gray-300 py-2.5 px-4 text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                  placeholder="RO12345678"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={companyCui}
+                    onChange={(e) => { setCompanyCui(e.target.value); setCuiVerified(false); setCuiError(""); }}
+                    onBlur={() => checkCUI(companyCui)}
+                    required={role === "transporter"}
+                    className={`w-full rounded-lg border py-2.5 px-4 text-gray-800 focus:outline-none focus:ring-2 ${
+                      cuiVerified ? "border-green-400 focus:border-green-500 focus:ring-green-200" :
+                      cuiError ? "border-red-400 focus:border-red-500 focus:ring-red-200" :
+                      "border-gray-300 focus:border-primary-500 focus:ring-primary-200"
+                    }`}
+                    placeholder="RO12345678"
+                  />
+                  {cuiChecking && <span className="absolute right-3 top-3 text-xs text-gray-400">Verificare...</span>}
+                  {cuiVerified && <span className="absolute right-3 top-3 text-xs text-green-600">✓ Verificat ANAF</span>}
+                </div>
+                {cuiError && <p className="mt-1 text-xs text-red-500">{cuiError}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

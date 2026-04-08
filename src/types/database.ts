@@ -60,6 +60,9 @@ export interface Company {
   smartbill_series: string | null;
   contract_template_url: string | null;
   contract_template_name: string | null;
+  is_approved: boolean;
+  approved_at: string | null;
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -644,6 +644,35 @@ export default function TransporterDashboard() {
     );
   }
 
+  // Check approval status
+  if (company && !company.is_approved) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20">
+        <div className="rounded-xl bg-white p-8 text-center shadow-md">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100">
+            <Clock className="h-8 w-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Cont în curs de verificare</h2>
+          <p className="mt-3 text-gray-600">
+            Contul companiei <strong>{company.name}</strong> este în curs de verificare de către echipa ATPSOR.
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            Vei fi notificat pe email când contul va fi aprobat. De obicei procesul durează 1-2 zile lucrătoare.
+          </p>
+          {company.rejection_reason && (
+            <div className="mt-4 rounded-lg bg-red-50 p-4 text-left">
+              <p className="text-sm font-medium text-red-700">Motiv respingere:</p>
+              <p className="mt-1 text-sm text-red-600">{company.rejection_reason}</p>
+            </div>
+          )}
+          <div className="mt-6 text-sm text-gray-400">
+            CUI: {company.cui} | Oraș: {company.city}, {company.county}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Tarife default per categorie (fallback)
   const DEFAULT_TARIFFS: Record<string, number> = {
     ridesharing: 2.50,
