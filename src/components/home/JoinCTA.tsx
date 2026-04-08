@@ -27,7 +27,7 @@ export function JoinCTA() {
                 <ArrowRight className="h-5 w-5" />
               </Link>
               <Link
-                href="/transport"
+                href="/request"
                 className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-6 py-3 text-base font-semibold text-white hover:bg-white/10"
               >
                 <Bus className="h-5 w-5" />

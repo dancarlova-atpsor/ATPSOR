@@ -38,7 +38,7 @@ export function HeroAssociation() {
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <Link
-                href="/transport"
+                href="/request"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-accent-600"
               >
                 Caut Transport
