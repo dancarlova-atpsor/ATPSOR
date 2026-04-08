@@ -269,13 +269,22 @@ export default function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Panou Administrare
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Gestionează platforma ATPSOR
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Panou Administrare
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Gestionează platforma ATPSOR
+          </p>
+        </div>
+        <a
+          href="/ro/dashboard/transporter"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
+        >
+          <Bus className="h-4 w-4" />
+          Panoul Meu de Transportator
+        </a>
       </div>
 
       {/* Stats */}

@@ -80,16 +80,7 @@ export async function middleware(request: NextRequest) {
     const isTransporterRoute = /\/dashboard\/transporter/.test(pathname);
     const isClientRoute = /\/dashboard\/client/.test(pathname);
 
-    // Admin can access everything - redirect admin from client/transporter to admin
-    if (profile?.role === "admin" && (isClientRoute || isTransporterRoute)) {
-      const redirectResponse = NextResponse.redirect(
-        new URL(`/${locale}/dashboard/admin`, request.url)
-      );
-      response.cookies.getAll().forEach((cookie) => {
-        redirectResponse.cookies.set(cookie.name, cookie.value);
-      });
-      return redirectResponse;
-    }
+    // Admin can access all dashboards (admin, transporter, client)
 
     // Non-admins can't access admin dashboard
     if (isAdminRoute && profile?.role !== "admin") {
