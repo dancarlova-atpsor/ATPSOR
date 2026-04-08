@@ -46,10 +46,7 @@ function calculateOfferPrice(pricePerKmNoVat: number, billableKm: number) {
   return { basePriceNoVat, tva, basePriceWithVat, platformFee, totalPrice, pricePerKmWithVat: pricePerKmNoVat * (1 + TVA_PERCENT / 100) };
 }
 
-// Offer with contract fields that exist in DB but not in the TS type
 interface OfferWithContract extends Offer {
-  contract_url?: string | null;
-  contract_name?: string | null;
   company: Company;
   vehicle: Vehicle;
 }
