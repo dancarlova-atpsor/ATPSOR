@@ -249,13 +249,22 @@ export function TransportersList() {
               {/* Header */}
               <div className="relative bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-5">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-white">
-                      {company.name}
-                    </h3>
-                    <div className="mt-1 flex items-center gap-1 text-sm text-primary-100">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {company.city}, {company.county}
+                  <div className="flex items-center gap-3">
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt={company.name} className="h-12 w-12 rounded-lg object-cover border border-white/30" />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20">
+                        <Bus className="h-6 w-6 text-white" />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-lg font-bold text-white">
+                        {company.name}
+                      </h3>
+                      <div className="mt-1 flex items-center gap-1 text-sm text-primary-100">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {company.city}, {company.county}
+                      </div>
                     </div>
                   </div>
                   {company.is_verified && (

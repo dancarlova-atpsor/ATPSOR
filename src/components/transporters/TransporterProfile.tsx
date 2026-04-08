@@ -219,15 +219,29 @@ export function TransporterProfile() {
                 key={vehicle.id}
                 className="overflow-hidden rounded-xl bg-white shadow-md"
               >
-                {/* Vehicle image */}
+                {/* Vehicle images gallery */}
                 {vehicle.images && vehicle.images.length > 0 ? (
-                  <img
-                    src={vehicle.images[0]}
-                    alt={vehicle.name}
-                    className="h-48 w-full object-cover"
-                  />
+                  <div className="relative">
+                    <div className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide">
+                      {vehicle.images.map((img: string, idx: number) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`${vehicle.name} - ${idx + 1}`}
+                          className="h-56 w-full flex-shrink-0 snap-center object-cover"
+                        />
+                      ))}
+                    </div>
+                    {vehicle.images.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+                        {vehicle.images.map((_: string, idx: number) => (
+                          <div key={idx} className="h-2 w-2 rounded-full bg-white/70" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <div className="flex h-48 items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                  <div className="flex h-56 items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                     <Bus className="h-16 w-16 text-gray-300" />
                   </div>
                 )}
