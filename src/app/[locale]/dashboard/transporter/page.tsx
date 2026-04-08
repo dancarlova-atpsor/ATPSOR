@@ -20,6 +20,8 @@ import {
   Shield,
   FileCheck,
   Loader2,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { VEHICLE_CATEGORIES } from "@/types/database";
@@ -50,6 +52,7 @@ export default function TransporterDashboard() {
   const [myOffers, setMyOffers] = useState<any[]>([]);
   const [bookingsCount, setBookingsCount] = useState(0);
   const [revenue, setRevenue] = useState(0);
+  const [togglingVehicle, setTogglingVehicle] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -144,6 +147,21 @@ export default function TransporterDashboard() {
 
   function getVehicleDocs(vehicleId: string) {
     return vehicleDocs.filter((d) => d.vehicle_id === vehicleId);
+  }
+
+  async function toggleVehicleActive(vehicleId: string, currentActive: boolean) {
+    setTogglingVehicle(vehicleId);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("vehicles")
+      .update({ is_active: !currentActive })
+      .eq("id", vehicleId);
+    if (!error) {
+      setVehicles((prev) =>
+        prev.map((v) => v.id === vehicleId ? { ...v, is_active: !currentActive } : v)
+      );
+    }
+    setTogglingVehicle(null);
   }
 
   function isVehicleDocsValid(vehicleId: string, seats: number) {
@@ -387,22 +405,27 @@ export default function TransporterDashboard() {
             </div>
           ) : (
             vehicles.map((vehicle) => {
-              const docsValid = isVehicleDocsValid(
-                vehicle.id,
-                vehicle.seats
-              );
+              const docsValid = isVehicleDocsValid(vehicle.id, vehicle.seats);
+              const isToggling = togglingVehicle === vehicle.id;
               return (
                 <div
                   key={vehicle.id}
-                  className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md"
+                  className={`flex items-center justify-between rounded-xl p-5 shadow-md transition ${
+                    vehicle.is_active ? "bg-white" : "bg-gray-50 opacity-75"
+                  }`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-50">
-                      <Bus className="h-6 w-6 text-primary-500" />
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${vehicle.is_active ? "bg-primary-50" : "bg-gray-100"}`}>
+                      <Bus className={`h-6 w-6 ${vehicle.is_active ? "text-primary-500" : "text-gray-400"}`} />
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900">
+                      <div className="flex items-center gap-2 font-semibold text-gray-900">
                         {vehicle.name}
+                        {!vehicle.is_active && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                            Blocat
+                          </span>
+                        )}
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
                         <span>{vehicle.seats} locuri</span>
@@ -416,16 +439,33 @@ export default function TransporterDashboard() {
                   </div>
                   <div className="flex items-center gap-3">
                     {docsValid ? (
-                      <span className="flex items-center gap-1 text-xs text-green-600">
+                      <span className="hidden items-center gap-1 text-xs text-green-600 sm:flex">
                         <CheckCircle className="h-4 w-4" />
-                        Documente valabile
+                        Documente ok
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-red-500">
+                      <span className="hidden items-center gap-1 text-xs text-red-500 sm:flex">
                         <AlertTriangle className="h-4 w-4" />
                         Documente lipsă
                       </span>
                     )}
+                    <button
+                      onClick={() => toggleVehicleActive(vehicle.id, vehicle.is_active)}
+                      disabled={isToggling}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                        vehicle.is_active
+                          ? "bg-red-50 text-red-600 hover:bg-red-100"
+                          : "bg-green-50 text-green-600 hover:bg-green-100"
+                      } disabled:opacity-50`}
+                    >
+                      {isToggling ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : vehicle.is_active ? (
+                        <><Lock className="h-4 w-4" /> Blochează</>
+                      ) : (
+                        <><Unlock className="h-4 w-4" /> Deblochează</>
+                      )}
+                    </button>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
                   </div>
                 </div>
