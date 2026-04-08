@@ -146,6 +146,43 @@ export function calculatePrice(
   return calculatePriceCustom(fromCity, toCity, isRoundTrip, days, tariffPerKm, MIN_KM_PER_DAY);
 }
 
+// Calcul pret din km dati direct (de la Google Maps API)
+export function calculatePriceFromKm(
+  totalKmOneWay: number,
+  isRoundTrip: boolean,
+  days: number,
+  tariffPerKm: number,
+  minKmPerDay: number = MIN_KM_PER_DAY,
+): PriceCalculation | null {
+  if (totalKmOneWay <= 0) return null;
+
+  const totalKmReal = isRoundTrip ? totalKmOneWay * 2 : totalKmOneWay;
+
+  const kmPerDay = days > 0 ? totalKmReal / days : totalKmReal;
+  const totalKmBillable = days > 0
+    ? Array.from({ length: days }, () => Math.max(kmPerDay, minKmPerDay)).reduce((a, b) => a + b, 0)
+    : Math.max(totalKmReal, minKmPerDay);
+
+  const subtotalNoVat = totalKmBillable * tariffPerKm;
+  const tva = subtotalNoVat * TVA_RATE;
+  const subtotalWithVat = subtotalNoVat + tva;
+  const platformFee = subtotalWithVat * PLATFORM_FEE_RATE;
+  const totalPrice = subtotalWithVat + platformFee;
+
+  return {
+    distanceOneWay: totalKmOneWay,
+    totalKmReal,
+    totalKmBillable,
+    days,
+    tariffPerKm,
+    subtotalNoVat,
+    tva,
+    subtotalWithVat,
+    platformFee,
+    totalPrice,
+  };
+}
+
 // Calcul cu tarif personalizat (de la transportator)
 export function calculatePriceCustom(
   fromCity: string,

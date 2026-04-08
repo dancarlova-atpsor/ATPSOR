@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { VehicleCategory } from "@/types/database";
-import { calculatePrice, calculatePriceCustom, PLATFORM_FEE_RATE, TVA_RATE } from "@/lib/distances";
+import { calculatePrice, calculatePriceCustom, calculatePriceFromKm, TARIFFS, PLATFORM_FEE_RATE, TVA_RATE } from "@/lib/distances";
 import { createClient } from "@/lib/supabase/client";
 
 interface TransporterOption {
@@ -137,8 +137,36 @@ export function RequestTransportForm() {
 
       const blockedIds = new Set((blocks || []).map((b: { vehicle_id: string }) => b.vehicle_id));
 
-      // Fetch vehicles and company pricing in parallel
-      const [vehiclesRes, pricingRes] = await Promise.all([
+      // Build waypoints for Google Maps API
+      const waypointsDus: string[] = [pickupCity];
+      if (intermediariesDus) {
+        waypointsDus.push(...intermediariesDus.split(",").map((c: string) => c.trim()).filter(Boolean));
+      }
+      waypointsDus.push(dropoffCity);
+
+      let waypointsIntors: string[] = [];
+      if (isRoundTrip) {
+        waypointsIntors = [dropoffCity];
+        if (intermediariesIntors) {
+          waypointsIntors.push(...intermediariesIntors.split(",").map((c: string) => c.trim()).filter(Boolean));
+        }
+        waypointsIntors.push(pickupCity);
+      }
+
+      // Fetch distance from Google Maps API, vehicles, and pricing in parallel
+      const [distanceDusRes, distanceIntorsRes, vehiclesRes, pricingRes] = await Promise.all([
+        fetch("/api/distance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ waypoints: waypointsDus }),
+        }).then((r) => r.json()).catch(() => ({ fallback: true })),
+        isRoundTrip
+          ? fetch("/api/distance", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ waypoints: waypointsIntors }),
+            }).then((r) => r.json()).catch(() => ({ fallback: true }))
+          : Promise.resolve(null),
         supabase
           .from("vehicles")
           .select("*, company:companies(*)")
@@ -149,6 +177,13 @@ export function RequestTransportForm() {
           .from("company_pricing")
           .select("*"),
       ]);
+
+      // Total km from Google Maps (or fallback)
+      const useGoogleMaps = !distanceDusRes.fallback && distanceDusRes.totalKm > 0;
+      const kmDus = useGoogleMaps ? distanceDusRes.totalKm : 0;
+      const kmIntors = isRoundTrip && distanceIntorsRes && !distanceIntorsRes.fallback
+        ? distanceIntorsRes.totalKm : 0;
+      const googleTotalKm = kmDus + kmIntors;
 
       const vehicles = vehiclesRes.data || [];
       const allPricing = pricingRes.data || [];
@@ -170,14 +205,21 @@ export function RequestTransportForm() {
         } | null;
         if (!company) continue;
 
-        // Use company pricing if available, otherwise fallback to default
         const customPricing = pricingMap.get(`${company.id}_${v.category}`);
-        const priceCalc = customPricing
-          ? calculatePriceCustom(
-              pickupCity, dropoffCity, isRoundTrip, dayCount,
-              customPricing.price_per_km, customPricing.min_km_per_day
-            )
-          : calculatePrice(pickupCity, dropoffCity, isRoundTrip, dayCount, v.category);
+        const tariff = customPricing?.price_per_km || TARIFFS[v.category] || 7.50;
+        const minKm = customPricing?.min_km_per_day || 200;
+
+        // Use Google Maps km if available, otherwise fallback to hardcoded
+        let priceCalc;
+        if (useGoogleMaps) {
+          // Google Maps returns total km for the full route (with intermediaries)
+          // For round trip, kmDus + kmIntors already calculated above
+          priceCalc = calculatePriceFromKm(googleTotalKm, false, dayCount, tariff, minKm);
+        } else {
+          priceCalc = customPricing
+            ? calculatePriceCustom(pickupCity, dropoffCity, isRoundTrip, dayCount, tariff, minKm)
+            : calculatePrice(pickupCity, dropoffCity, isRoundTrip, dayCount, v.category);
+        }
         if (!priceCalc) continue;
 
         options.push({
