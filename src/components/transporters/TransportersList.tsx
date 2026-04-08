@@ -120,6 +120,15 @@ export function TransportersList() {
         pickup_cities: c.pickup_cities ?? [],
       }));
 
+      // Luxuria Trans & Travel mereu prima, apoi verificati, apoi rating
+      mapped.sort((a, b) => {
+        const aIsLuxuria = a.name.toLowerCase().includes("luxuria") ? 1 : 0;
+        const bIsLuxuria = b.name.toLowerCase().includes("luxuria") ? 1 : 0;
+        if (aIsLuxuria !== bIsLuxuria) return bIsLuxuria - aIsLuxuria;
+        if (a.is_verified !== b.is_verified) return a.is_verified ? -1 : 1;
+        return b.rating - a.rating;
+      });
+
       setTransporters(mapped);
       setLoading(false);
     }
