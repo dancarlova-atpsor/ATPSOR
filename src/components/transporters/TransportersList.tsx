@@ -278,22 +278,19 @@ export function TransportersList() {
                   </div>
                 </div>
 
-                {/* Tarife per categorie - vizibile doar clientilor */}
-                <div className="mt-3 space-y-1.5">
+                {/* Categorii vehicule (fara pret - confidential) */}
+                {company.categories.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
                   {company.categories.map((cat) => (
-                    <div
+                    <span
                       key={cat}
-                      className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5"
+                      className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-600"
                     >
-                      <span className="text-xs text-gray-600">
-                        {VEHICLE_CATEGORIES[cat]?.label}
-                      </span>
-                      <span className="text-xs font-bold text-primary-600">
-                        {company.price_per_km[cat]?.toFixed(2)} RON/km + TVA
-                      </span>
-                    </div>
+                      {VEHICLE_CATEGORIES[cat]?.label}
+                    </span>
                   ))}
                 </div>
+                )}
 
                 {/* Pickup cities */}
                 {company.pickup_cities.length > 0 && (
