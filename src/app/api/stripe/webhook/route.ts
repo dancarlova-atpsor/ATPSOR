@@ -41,8 +41,12 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient();
 
+    console.log("Webhook metadata:", JSON.stringify(meta));
+    console.log("offerId:", offerId, "vehicleId:", vehicleId, "departureDate:", departureDate);
+
     // Direct booking flow (no offer in DB)
     if (vehicleId && departureDate) {
+      console.log("Entering direct booking flow");
       const endDate = returnDate || departureDate;
 
       // Block vehicle for the booked dates
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
       });
 
       // Create booking record
-      const { data: booking } = await supabase
+      const { data: booking, error: bookingError } = await supabase
         .from("bookings")
         .insert({
           offer_id: null,
@@ -68,6 +72,11 @@ export async function POST(request: Request) {
         })
         .select()
         .single();
+
+      if (bookingError) {
+        console.error("BOOKING INSERT ERROR:", bookingError.message, bookingError);
+      }
+      console.log("Booking created:", booking?.id || "FAILED");
 
       if (booking) {
         await supabase.from("payments").insert({
