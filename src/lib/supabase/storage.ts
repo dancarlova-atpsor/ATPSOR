@@ -19,7 +19,8 @@ export async function uploadFile(
     });
 
   if (error) {
-    console.error("Upload error:", error);
+    console.error("Storage upload error:", error.message, error);
+    alert("Storage error: " + error.message);
     return null;
   }
 
