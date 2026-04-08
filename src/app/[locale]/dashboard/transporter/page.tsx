@@ -26,6 +26,7 @@ import {
   Save,
   Camera,
   FileSignature,
+  X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
@@ -70,6 +71,14 @@ export default function TransporterDashboard() {
   const [pricing, setPricing] = useState<any[]>([]);
   const [savingPricing, setSavingPricing] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  // Vehicle editing state
+  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
+  const [vehicleEditForm, setVehicleEditForm] = useState({ name: "", brand: "", model: "", year: "", seats: "", features: "" });
+  const [vehiclePhotos, setVehiclePhotos] = useState<File[]>([]);
+  const [vehicleExistingPhotos, setVehicleExistingPhotos] = useState<string[]>([]);
+  const [savingVehicle, setSavingVehicle] = useState(false);
+  const [vehicleMsg, setVehicleMsg] = useState("");
 
   // Profile editing state
   const [profileForm, setProfileForm] = useState({
@@ -276,6 +285,70 @@ export default function TransporterDashboard() {
         d.expiry_date >= today
     );
     return hasItp && hasRca && hasCopy && hasInsurance;
+  }
+
+  function startEditVehicle(vehicle: any) {
+    setEditingVehicleId(vehicle.id);
+    setVehicleEditForm({
+      name: vehicle.name || "",
+      brand: vehicle.brand || "",
+      model: vehicle.model || "",
+      year: String(vehicle.year || ""),
+      seats: String(vehicle.seats || ""),
+      features: (vehicle.features || []).join(", "),
+    });
+    setVehicleExistingPhotos(vehicle.images || []);
+    setVehiclePhotos([]);
+    setVehicleMsg("");
+  }
+
+  async function saveVehicleEdit() {
+    if (!editingVehicleId || !company) return;
+    setSavingVehicle(true);
+    setVehicleMsg("");
+
+    const supabase = createClient();
+
+    // Upload new photos
+    const newPhotoUrls: string[] = [];
+    for (const photo of vehiclePhotos) {
+      const result = await uploadFile(photo, `vehicles/${editingVehicleId}`);
+      if (result) newPhotoUrls.push(result.url);
+    }
+
+    // Combine existing + new, max 5
+    const allPhotos = [...vehicleExistingPhotos, ...newPhotoUrls].slice(0, 5);
+
+    const { error } = await supabase
+      .from("vehicles")
+      .update({
+        name: vehicleEditForm.name.trim(),
+        brand: vehicleEditForm.brand.trim(),
+        model: vehicleEditForm.model.trim(),
+        year: parseInt(vehicleEditForm.year) || 2020,
+        seats: parseInt(vehicleEditForm.seats) || 0,
+        features: vehicleEditForm.features.split(",").map(f => f.trim()).filter(Boolean),
+        images: allPhotos,
+      })
+      .eq("id", editingVehicleId);
+
+    if (error) {
+      setVehicleMsg("Eroare: " + error.message);
+    } else {
+      setVehicles(prev => prev.map(v => v.id === editingVehicleId ? {
+        ...v,
+        name: vehicleEditForm.name.trim(),
+        brand: vehicleEditForm.brand.trim(),
+        model: vehicleEditForm.model.trim(),
+        year: parseInt(vehicleEditForm.year) || 2020,
+        seats: parseInt(vehicleEditForm.seats) || 0,
+        features: vehicleEditForm.features.split(",").map(f => f.trim()).filter(Boolean),
+        images: allPhotos,
+      } : v));
+      setVehicleMsg("Vehicul salvat!");
+      setEditingVehicleId(null);
+    }
+    setSavingVehicle(false);
   }
 
   async function saveProfile(e: React.FormEvent) {
@@ -864,6 +937,14 @@ export default function TransporterDashboard() {
                         </div>
                       </div>
                     </div>
+                    <div className="flex gap-2">
+                    <button
+                      onClick={() => startEditVehicle(vehicle)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-100"
+                    >
+                      <Camera className="h-4 w-4" />
+                      Editează
+                    </button>
                     <button
                       onClick={() => setBlockingVehicleId(isAddingBlock ? null : vehicle.id)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
@@ -871,6 +952,7 @@ export default function TransporterDashboard() {
                       <Lock className="h-4 w-4" />
                       Blochează perioadă
                     </button>
+                    </div>
                   </div>
 
                   {/* Form adăugare blocare */}
@@ -943,6 +1025,100 @@ export default function TransporterDashboard() {
                             )}
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Editare vehicul */}
+                  {editingVehicleId === vehicle.id && (
+                    <div className="border-t border-gray-100 bg-blue-50 px-5 py-4">
+                      <h4 className="mb-3 text-sm font-semibold text-gray-700">Editează vehiculul</h4>
+                      {vehicleMsg && (
+                        <div className={`mb-3 rounded p-2 text-sm ${vehicleMsg.includes("Eroare") ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
+                          {vehicleMsg}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">Denumire</label>
+                          <input type="text" value={vehicleEditForm.name} onChange={e => setVehicleEditForm(p => ({...p, name: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">Marcă</label>
+                          <input type="text" value={vehicleEditForm.brand} onChange={e => setVehicleEditForm(p => ({...p, brand: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">Model</label>
+                          <input type="text" value={vehicleEditForm.model} onChange={e => setVehicleEditForm(p => ({...p, model: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">An</label>
+                          <input type="number" value={vehicleEditForm.year} onChange={e => setVehicleEditForm(p => ({...p, year: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">Locuri</label>
+                          <input type="number" value={vehicleEditForm.seats} onChange={e => setVehicleEditForm(p => ({...p, seats: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">Dotări (separate cu virgulă)</label>
+                          <input type="text" value={vehicleEditForm.features} onChange={e => setVehicleEditForm(p => ({...p, features: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                            placeholder="AC, WiFi, TV..." />
+                        </div>
+                      </div>
+
+                      {/* Poze existente */}
+                      <div className="mt-4">
+                        <label className="mb-2 block text-xs font-medium text-gray-500">Poze vehicul (max 5)</label>
+                        <div className="flex flex-wrap gap-3">
+                          {vehicleExistingPhotos.map((url, i) => (
+                            <div key={i} className="group relative h-24 w-32 overflow-hidden rounded-lg border border-gray-200">
+                              <img src={url} alt={`Poza ${i+1}`} className="h-full w-full object-cover" />
+                              <button type="button" onClick={() => setVehicleExistingPhotos(prev => prev.filter((_, j) => j !== i))}
+                                className="absolute right-1 top-1 rounded-full bg-red-500 p-0.5 text-white opacity-0 group-hover:opacity-100">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                          {vehiclePhotos.map((file, i) => (
+                            <div key={`new-${i}`} className="group relative h-24 w-32 overflow-hidden rounded-lg border-2 border-green-300">
+                              <img src={URL.createObjectURL(file)} alt={`Nouă ${i+1}`} className="h-full w-full object-cover" />
+                              <button type="button" onClick={() => setVehiclePhotos(prev => prev.filter((_, j) => j !== i))}
+                                className="absolute right-1 top-1 rounded-full bg-red-500 p-0.5 text-white opacity-0 group-hover:opacity-100">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                          {(vehicleExistingPhotos.length + vehiclePhotos.length) < 5 && (
+                            <label className="flex h-24 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-primary-400">
+                              <Camera className="h-6 w-6 text-gray-400" />
+                              <span className="mt-1 text-xs text-gray-400">Adaugă</span>
+                              <input type="file" accept="image/*" multiple className="hidden"
+                                onChange={e => {
+                                  const files = Array.from(e.target.files || []);
+                                  const maxNew = 5 - vehicleExistingPhotos.length - vehiclePhotos.length;
+                                  setVehiclePhotos(prev => [...prev, ...files.slice(0, maxNew)]);
+                                  e.target.value = "";
+                                }} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex gap-2">
+                        <button onClick={saveVehicleEdit} disabled={savingVehicle}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
+                          {savingVehicle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          Salvează
+                        </button>
+                        <button onClick={() => setEditingVehicleId(null)} className="text-xs text-gray-400 hover:text-gray-600">
+                          Anulează
+                        </button>
                       </div>
                     </div>
                   )}
