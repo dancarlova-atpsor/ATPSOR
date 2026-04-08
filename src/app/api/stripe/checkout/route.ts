@@ -9,13 +9,22 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { offerId, amount, currency = "ron", description, billingData } =
-      await request.json();
+    const {
+      offerId, amount, currency = "ron", description,
+      billingData, vehicleId, companyId, requestId,
+      departureDate, returnDate,
+    } = await request.json();
 
     const metadata: Record<string, string> = {
       offerId: offerId || "",
       userId: user?.id || "",
     };
+
+    if (vehicleId) metadata.vehicleId = String(vehicleId);
+    if (companyId) metadata.companyId = String(companyId);
+    if (requestId) metadata.requestId = String(requestId);
+    if (departureDate) metadata.departureDate = String(departureDate);
+    if (returnDate) metadata.returnDate = String(returnDate);
 
     if (billingData) {
       if (billingData.name) metadata.billing_name = String(billingData.name).slice(0, 500);

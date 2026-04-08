@@ -120,6 +120,16 @@ export function RequestTransportForm() {
     try {
       const supabase = createClient();
       const minSeats = parseInt(passengers) || 1;
+      const endDate = isRoundTrip && returnDate ? returnDate : departureDate;
+
+      // Get blocked vehicle IDs for the selected date range (overlap check)
+      const { data: blocks } = await supabase
+        .from("vehicle_blocks")
+        .select("vehicle_id")
+        .lte("start_date", endDate)
+        .gte("end_date", departureDate);
+
+      const blockedIds = new Set((blocks || []).map((b: { vehicle_id: string }) => b.vehicle_id));
 
       const { data: vehicles } = await supabase
         .from("vehicles")
@@ -130,7 +140,7 @@ export function RequestTransportForm() {
 
       const options: TransporterOption[] = [];
 
-      for (const v of vehicles || []) {
+      for (const v of (vehicles || []).filter((v: { id: string }) => !blockedIds.has(v.id))) {
         const company = v.company as {
           id: string; name: string; city: string;
           rating: number; total_reviews: number; is_verified: boolean;
@@ -227,6 +237,11 @@ export function RequestTransportForm() {
           amount: selected.estimatedPrice,
           currency: "ron",
           description: `Transport ${pickupCity} → ${dropoffCity}, ${departureDate}, ${passengers} pers. | ${selected.companyName}`,
+          vehicleId: selected.vehicleId,
+          companyId: selected.companyId,
+          requestId,
+          departureDate,
+          returnDate: isRoundTrip ? returnDate : null,
           billingData: {
             name: `${billingLastName} ${billingFirstName}`.trim(),
             firstName: billingFirstName,
@@ -238,9 +253,6 @@ export function RequestTransportForm() {
             email: clientEmail,
             address: `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}`,
           },
-          requestId,
-          companyId: selected.companyId,
-          vehicleId: selected.vehicleId,
         }),
       });
       const data = await res.json();
