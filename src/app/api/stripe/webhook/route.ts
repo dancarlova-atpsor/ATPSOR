@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/config";
 import { createClient } from "@/lib/supabase/server";
+import { generateAllInvoices } from "@/lib/invoicing";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
@@ -24,10 +25,11 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    const meta = session.metadata || {};
     const {
       offerId, userId, vehicleId, companyId, requestId,
       departureDate, returnDate,
-    } = session.metadata || {};
+    } = meta;
 
     const supabase = await createClient();
 
@@ -67,6 +69,25 @@ export async function POST(request: Request) {
           currency: session.currency || "ron",
           status: "paid",
         });
+
+        // Generate SmartBill invoices (fire-and-forget)
+        if (meta.transporterCui && meta.route) {
+          generateAllInvoices({
+            bookingId: booking.id,
+            subtotalWithVat: parseFloat(meta.subtotalWithVat || "0"),
+            platformFee: parseFloat(meta.platformFee || "0"),
+            route: meta.route || "",
+            date: departureDate,
+            totalKm: parseFloat(meta.totalKm || "0"),
+            pricePerKm: parseFloat(meta.pricePerKm || "0"),
+            transporterName: meta.transporterName || "",
+            transporterCui: meta.transporterCui || "",
+            transporterEmail: meta.transporterEmail || "",
+            transporterSeries: meta.transporterSeries || "",
+            clientName: meta.billing_name || "",
+            clientEmail: meta.billing_email || "",
+          }).catch((err) => console.error("Invoice generation error:", err));
+        }
       }
       return NextResponse.json({ received: true });
     }
@@ -80,7 +101,7 @@ export async function POST(request: Request) {
         .single();
 
       if (offer) {
-        const req = offer.request as { departure_date?: string; return_date?: string; vehicle_id?: string } | null;
+        const req = offer.request as { departure_date?: string; return_date?: string } | null;
 
         const { data: booking } = await supabase
           .from("bookings")
@@ -113,6 +134,25 @@ export async function POST(request: Request) {
               reason: "booking",
               booking_reference: session.id,
             });
+          }
+
+          // Generate SmartBill invoices (fire-and-forget)
+          if (meta.transporterCui && meta.route) {
+            generateAllInvoices({
+              bookingId: booking.id,
+              subtotalWithVat: parseFloat(meta.subtotalWithVat || "0"),
+              platformFee: parseFloat(meta.platformFee || "0"),
+              route: meta.route || "",
+              date: req?.departure_date || "",
+              totalKm: parseFloat(meta.totalKm || "0"),
+              pricePerKm: parseFloat(meta.pricePerKm || "0"),
+              transporterName: meta.transporterName || "",
+              transporterCui: meta.transporterCui || "",
+              transporterEmail: meta.transporterEmail || "",
+              transporterSeries: meta.transporterSeries || "",
+              clientName: meta.billing_name || "",
+              clientEmail: meta.billing_email || "",
+            }).catch((err) => console.error("Invoice generation error:", err));
           }
         }
       }

@@ -140,20 +140,32 @@ export function calculatePrice(
   days: number,
   vehicleCategory: string,
 ): PriceCalculation | null {
-  const distanceOneWay = getDistanceKm(fromCity, toCity);
-  if (distanceOneWay === null) return null;
-
   const tariffPerKm = TARIFFS[vehicleCategory];
   if (!tariffPerKm) return null;
+
+  return calculatePriceCustom(fromCity, toCity, isRoundTrip, days, tariffPerKm, MIN_KM_PER_DAY);
+}
+
+// Calcul cu tarif personalizat (de la transportator)
+export function calculatePriceCustom(
+  fromCity: string,
+  toCity: string,
+  isRoundTrip: boolean,
+  days: number,
+  tariffPerKm: number,
+  minKmPerDay: number = MIN_KM_PER_DAY,
+): PriceCalculation | null {
+  const distanceOneWay = getDistanceKm(fromCity, toCity);
+  if (distanceOneWay === null) return null;
 
   // Total real km
   const totalKmReal = isRoundTrip ? distanceOneWay * 2 : distanceOneWay;
 
-  // Billable: distribute km across days, min 200/day
+  // Billable: distribute km across days, min km/day
   const kmPerDay = days > 0 ? totalKmReal / days : totalKmReal;
   const totalKmBillable = days > 0
-    ? Array.from({ length: days }, () => Math.max(kmPerDay, MIN_KM_PER_DAY)).reduce((a, b) => a + b, 0)
-    : Math.max(totalKmReal, MIN_KM_PER_DAY);
+    ? Array.from({ length: days }, () => Math.max(kmPerDay, minKmPerDay)).reduce((a, b) => a + b, 0)
+    : Math.max(totalKmReal, minKmPerDay);
 
   const subtotalNoVat = totalKmBillable * tariffPerKm;
   const tva = subtotalNoVat * TVA_RATE;

@@ -4,11 +4,18 @@
 const SMARTBILL_API_URL = "https://ws.smartbill.ro/SBORO/api";
 
 interface SmartBillConfig {
-  username: string; // SmartBill email
-  token: string; // SmartBill API token
-  companyVatCode: string; // ATPSOR CUI (for commission invoices)
+  username: string;
+  token: string;
+  companyVatCode: string;
 }
 
+export interface SmartBillResponse {
+  number?: string;
+  series?: string;
+  errorText?: string;
+}
+
+// ATPSOR config
 function getConfig(): SmartBillConfig {
   return {
     username: process.env.SMARTBILL_USERNAME || "",
@@ -19,6 +26,22 @@ function getConfig(): SmartBillConfig {
 
 function getAuthHeader(): string {
   const { username, token } = getConfig();
+  return "Basic " + Buffer.from(`${username}:${token}`).toString("base64");
+}
+
+// Luxuria Trans Travel config (cont SmartBill separat)
+function getLuxuriaConfig() {
+  return {
+    username: process.env.LUXURIA_SMARTBILL_USERNAME || "",
+    token: process.env.LUXURIA_SMARTBILL_TOKEN || "",
+    companyVatCode: process.env.LUXURIA_SMARTBILL_VAT || "",
+    series: process.env.LUXURIA_SMARTBILL_SERIES || "LTT",
+    name: process.env.LUXURIA_NAME || "Luxuria Trans Travel SRL",
+  };
+}
+
+function getLuxuriaAuthHeader(): string {
+  const { username, token } = getLuxuriaConfig();
   return "Basic " + Buffer.from(`${username}:${token}`).toString("base64");
 }
 
@@ -43,18 +66,21 @@ interface InvoiceProduct {
 }
 
 interface CreateInvoiceParams {
-  seriesName: string; // Invoice series (e.g., "ATPSOR" or transporter's series)
-  issuerCui: string; // CUI of the issuer (transporter or ATPSOR)
+  seriesName: string;
+  issuerCui: string;
   client: InvoiceClient;
   products: InvoiceProduct[];
   currency: string;
   isDraft?: boolean;
+  authHeader?: string; // override for Luxuria's separate SmartBill account
 }
 
 // Create invoice via SmartBill API
-export async function createInvoice(params: CreateInvoiceParams) {
+export async function createInvoice(params: CreateInvoiceParams): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
   const config = getConfig();
-  if (!config.username || !config.token) {
+
+  if (!auth || auth === "Basic Og==") {
     console.log("SmartBill not configured, skipping invoice");
     return null;
   }
@@ -88,7 +114,7 @@ export async function createInvoice(params: CreateInvoiceParams) {
     const res = await fetch(`${SMARTBILL_API_URL}/invoice`, {
       method: "POST",
       headers: {
-        Authorization: getAuthHeader(),
+        Authorization: auth,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -96,7 +122,7 @@ export async function createInvoice(params: CreateInvoiceParams) {
     });
 
     const data = await res.json();
-    return data;
+    return data as SmartBillResponse;
   } catch (error) {
     console.error("SmartBill invoice error:", error);
     return null;
@@ -115,7 +141,7 @@ export async function generateTransportInvoice(params: {
   pricePerKm: number;
   totalWithoutVat: number;
   vatRate: number;
-}) {
+}): Promise<SmartBillResponse | null> {
   return createInvoice({
     seriesName: params.transporterSeries,
     issuerCui: params.transporterCui,
@@ -137,7 +163,7 @@ export async function generateTransportInvoice(params: {
   });
 }
 
-// Generate commission invoice (ATPSOR → Transporter)
+// Generate commission invoice (ATPSOR → Transporter) - 5% comision
 export async function generateCommissionInvoice(params: {
   transporterName: string;
   transporterCui: string;
@@ -146,16 +172,53 @@ export async function generateCommissionInvoice(params: {
   route: string;
   date: string;
   vatRate: number;
-}) {
+}): Promise<SmartBillResponse | null> {
   const config = getConfig();
 
   return createInvoice({
     seriesName: "ATPSOR",
-    issuerCui: config.companyVatCode, // ATPSOR CUI
+    issuerCui: config.companyVatCode,
     client: {
       name: params.transporterName,
       vatCode: params.transporterCui,
       email: params.transporterEmail,
+    },
+    products: [
+      {
+        name: `Comision intermediere transport: ${params.route} (${params.date})`,
+        measuringUnitName: "buc",
+        quantity: 1,
+        price: params.commissionAmount,
+        isTaxIncluded: false,
+        taxPercentage: params.vatRate,
+      },
+    ],
+    currency: "RON",
+  });
+}
+
+// Generate Luxuria commission invoice (Luxuria Trans Travel → ATPSOR) - 50% din comision
+export async function generateLuxuriaCommissionInvoice(params: {
+  commissionAmount: number; // 50% din comisionul ATPSOR (= 2.5% din total)
+  route: string;
+  date: string;
+  vatRate: number;
+}): Promise<SmartBillResponse | null> {
+  const luxuria = getLuxuriaConfig();
+  const atpsor = getConfig();
+
+  if (!luxuria.username || !luxuria.token) {
+    console.log("Luxuria SmartBill not configured, skipping invoice");
+    return null;
+  }
+
+  return createInvoice({
+    seriesName: luxuria.series,
+    issuerCui: luxuria.companyVatCode,
+    authHeader: getLuxuriaAuthHeader(),
+    client: {
+      name: "ATPSOR - Asociatia Transportatorilor de Persoane prin Serviciu Ocazional din Romania",
+      vatCode: atpsor.companyVatCode,
     },
     products: [
       {

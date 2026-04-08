@@ -25,6 +25,9 @@ export type BookingStatus =
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
+export type InvoiceType = "transport" | "commission" | "luxuria_commission";
+export type InvoiceStatus = "pending" | "issued" | "failed";
+
 export interface Profile {
   id: string;
   email: string;
@@ -53,6 +56,8 @@ export interface Company {
   is_verified: boolean;
   rating: number;
   total_reviews: number;
+  stripe_account_id: string | null;
+  smartbill_series: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +154,23 @@ export interface Review {
   created_at: string;
   // Joined fields
   client?: Profile;
+}
+
+export interface Invoice {
+  id: string;
+  booking_id: string;
+  invoice_type: InvoiceType;
+  smartbill_number: string | null;
+  smartbill_series: string | null;
+  issuer_name: string;
+  issuer_cui: string;
+  client_name: string;
+  amount: number;
+  vat_amount: number | null;
+  currency: string;
+  status: InvoiceStatus;
+  error_message: string | null;
+  created_at: string;
 }
 
 export const VEHICLE_CATEGORIES: Record<

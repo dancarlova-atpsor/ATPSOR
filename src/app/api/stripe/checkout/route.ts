@@ -10,10 +10,18 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     const {
-      offerId, amount, currency = "ron", description,
+      offerId, subtotalWithVat, platformFee, currency = "ron", description,
       billingData, vehicleId, companyId, requestId,
       departureDate, returnDate,
+      // Connect fields
+      transporterStripeAccountId,
+      // Invoice fields
+      transporterName, transporterCui, transporterEmail, transporterSeries,
+      route, totalKm, pricePerKm,
     } = await request.json();
+
+    // Total = subtotalWithVat + platformFee
+    const totalAmount = (subtotalWithVat || 0) + (platformFee || 0);
 
     const metadata: Record<string, string> = {
       offerId: offerId || "",
@@ -26,6 +34,7 @@ export async function POST(request: Request) {
     if (departureDate) metadata.departureDate = String(departureDate);
     if (returnDate) metadata.returnDate = String(returnDate);
 
+    // Billing data
     if (billingData) {
       if (billingData.name) metadata.billing_name = String(billingData.name).slice(0, 500);
       if (billingData.address) metadata.billing_address = String(billingData.address).slice(0, 500);
@@ -34,7 +43,24 @@ export async function POST(request: Request) {
       if (billingData.email) metadata.billing_email = String(billingData.email).slice(0, 500);
     }
 
-    const session = await getStripe().checkout.sessions.create({
+    // Invoice data for webhook
+    if (route) metadata.route = String(route).slice(0, 500);
+    if (totalKm) metadata.totalKm = String(totalKm);
+    if (pricePerKm) metadata.pricePerKm = String(pricePerKm);
+    if (subtotalWithVat) metadata.subtotalWithVat = String(subtotalWithVat);
+    if (platformFee) metadata.platformFee = String(platformFee);
+    if (transporterName) metadata.transporterName = String(transporterName).slice(0, 500);
+    if (transporterCui) metadata.transporterCui = String(transporterCui);
+    if (transporterEmail) metadata.transporterEmail = String(transporterEmail).slice(0, 500);
+    if (transporterSeries) metadata.transporterSeries = String(transporterSeries);
+
+    const stripe = getStripe();
+
+    // Stripe Connect: split payment daca transportatorul are cont Stripe
+    const useConnect = !!transporterStripeAccountId;
+    const platformFeeBani = Math.round((platformFee || 0) * 100); // RON → bani
+
+    const sessionConfig: any = {
       payment_method_types: ["card"],
       line_items: [
         {
@@ -44,7 +70,7 @@ export async function POST(request: Request) {
               name: "Transport Ocazional ATPSOR",
               description,
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(totalAmount * 100), // RON → bani
           },
           quantity: 1,
         },
@@ -53,7 +79,20 @@ export async function POST(request: Request) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/ro/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/ro/booking/cancel`,
       metadata,
-    });
+    };
+
+    // Adauga Connect split daca avem Stripe account
+    if (useConnect) {
+      sessionConfig.payment_intent_data = {
+        application_fee_amount: platformFeeBani, // 5% ramane la ATPSOR
+        transfer_data: {
+          destination: transporterStripeAccountId, // 95% merge la transportator
+        },
+      };
+      metadata.transporterAccountId = transporterStripeAccountId;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     return NextResponse.json({ url: session.url });
   } catch (error) {

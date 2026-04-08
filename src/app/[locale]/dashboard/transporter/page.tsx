@@ -40,7 +40,7 @@ export default function TransporterDashboard() {
   const t = useTranslations();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    "requests" | "offers" | "vehicles" | "documents"
+    "requests" | "offers" | "vehicles" | "documents" | "pricing"
   >("requests");
 
   const [loading, setLoading] = useState(true);
@@ -58,6 +58,8 @@ export default function TransporterDashboard() {
   const [blockStart, setBlockStart] = useState("");
   const [blockEnd, setBlockEnd] = useState("");
   const [savingBlock, setSavingBlock] = useState(false);
+  const [pricing, setPricing] = useState<any[]>([]);
+  const [savingPricing, setSavingPricing] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -93,6 +95,7 @@ export default function TransporterDashboard() {
         vehicleDocsRes,
         offersRes,
         bookingsRes,
+        pricingRes,
       ] = await Promise.all([
         supabase
           .from("vehicles")
@@ -127,6 +130,10 @@ export default function TransporterDashboard() {
           .from("bookings")
           .select("total_price")
           .eq("company_id", comp.id),
+        supabase
+          .from("company_pricing")
+          .select("*")
+          .eq("company_id", comp.id),
       ]);
 
       if (vehiclesRes.data) {
@@ -148,6 +155,7 @@ export default function TransporterDashboard() {
       if (companyDocsRes.data) setCompanyDocs(companyDocsRes.data);
       if (vehicleDocsRes.data) setVehicleDocs(vehicleDocsRes.data);
       if (offersRes.data) setMyOffers(offersRes.data);
+      if (pricingRes.data) setPricing(pricingRes.data);
       if (bookingsRes.data) {
         setBookingsCount(bookingsRes.data.length);
         setRevenue(
@@ -245,6 +253,55 @@ export default function TransporterDashboard() {
     );
   }
 
+  // Tarife default per categorie (fallback)
+  const DEFAULT_TARIFFS: Record<string, number> = {
+    ridesharing: 2.50,
+    microbuz: 4.50,
+    midiautocar: 6.50,
+    autocar: 7.50,
+    autocar_maxi: 8.50,
+    autocar_grand_turismo: 9.50,
+  };
+
+  function getPricingForCategory(cat: string) {
+    return pricing.find((p) => p.vehicle_category === cat);
+  }
+
+  async function savePricing(category: string, pricePerKm: number, minKmPerDay: number) {
+    if (!company) return;
+    setSavingPricing(true);
+    const supabase = createClient();
+    const existing = getPricingForCategory(category);
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from("company_pricing")
+        .update({ price_per_km: pricePerKm, min_km_per_day: minKmPerDay })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (!error && data) {
+        setPricing((prev) => prev.map((p) => (p.id === existing.id ? data : p)));
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("company_pricing")
+        .insert({
+          company_id: company.id,
+          vehicle_category: category,
+          price_per_km: pricePerKm,
+          min_km_per_day: minKmPerDay,
+          currency: "RON",
+        })
+        .select()
+        .single();
+      if (!error && data) {
+        setPricing((prev) => [...prev, data]);
+      }
+    }
+    setSavingPricing(false);
+  }
+
   const tabs = [
     {
       key: "requests" as const,
@@ -255,6 +312,11 @@ export default function TransporterDashboard() {
       key: "vehicles" as const,
       label: t("dashboard.transporter.myVehicles"),
       icon: Bus,
+    },
+    {
+      key: "pricing" as const,
+      label: "Tarife",
+      icon: DollarSign,
     },
     {
       key: "documents" as const,
@@ -565,6 +627,91 @@ export default function TransporterDashboard() {
               );
             })
           )}
+        </div>
+      )}
+
+      {activeTab === "pricing" && (
+        <div className="space-y-4">
+          <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
+            <p>Setează tariful per km (fără TVA) pentru fiecare categorie de vehicul pe care o deții. Clientii vor vedea prețul calculat automat pe baza distanței și a tarifului tău.</p>
+          </div>
+          {Object.entries(VEHICLE_CATEGORIES).map(([cat, info]) => {
+            const hasVehicle = vehicles.some((v) => v.category === cat);
+            if (!hasVehicle) return null;
+            const existing = getPricingForCategory(cat);
+            const defaultPrice = DEFAULT_TARIFFS[cat] || 7.50;
+            const currentPrice = existing?.price_per_km || "";
+            const currentMinKm = existing?.min_km_per_day || 200;
+
+            return (
+              <div key={cat} className="rounded-xl bg-white p-5 shadow-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-100">
+                      <Bus className="h-5 w-5 text-primary-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{info.label}</div>
+                      <div className="text-xs text-gray-400">{info.minSeats}–{info.maxSeats} locuri</div>
+                    </div>
+                  </div>
+                  {existing && (
+                    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-600">
+                      Tarif setat
+                    </span>
+                  )}
+                </div>
+                <form
+                  className="mt-4 flex flex-wrap items-end gap-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.target as HTMLFormElement;
+                    const price = parseFloat((form.elements.namedItem("price") as HTMLInputElement).value);
+                    const minKm = parseInt((form.elements.namedItem("minKm") as HTMLInputElement).value) || 200;
+                    if (price > 0) savePricing(cat, price, minKm);
+                  }}
+                >
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">Preț per km (RON, fără TVA) *</label>
+                    <input
+                      name="price"
+                      type="number"
+                      step="0.10"
+                      min="0.50"
+                      max="50"
+                      defaultValue={currentPrice}
+                      placeholder={`implicit: ${defaultPrice}`}
+                      className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">Minim km/zi</label>
+                    <input
+                      name="minKm"
+                      type="number"
+                      min="50"
+                      max="1000"
+                      defaultValue={currentMinKm}
+                      className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={savingPricing}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    {savingPricing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    {existing ? "Actualizează" : "Salvează"}
+                  </button>
+                </form>
+                {!existing && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    Dacă nu setezi un tarif, se va folosi tariful implicit de {defaultPrice} RON/km.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

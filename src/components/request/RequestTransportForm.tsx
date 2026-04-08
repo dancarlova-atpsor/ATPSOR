@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { VehicleCategory } from "@/types/database";
-import { calculatePrice } from "@/lib/distances";
+import { calculatePrice, calculatePriceCustom, PLATFORM_FEE_RATE, TVA_RATE } from "@/lib/distances";
 import { createClient } from "@/lib/supabase/client";
 
 interface TransporterOption {
@@ -38,7 +38,13 @@ interface TransporterOption {
   companyRating: number;
   companyReviews: number;
   companyVerified: boolean;
+  companyCui: string;
+  companyEmail: string;
+  companyStripeAccountId: string | null;
+  companySmartbillSeries: string | null;
   estimatedPrice: number;
+  subtotalWithVat: number;
+  platformFee: number;
   pricePerKm: number;
   totalKmBillable: number;
 }
@@ -131,25 +137,47 @@ export function RequestTransportForm() {
 
       const blockedIds = new Set((blocks || []).map((b: { vehicle_id: string }) => b.vehicle_id));
 
-      const { data: vehicles } = await supabase
-        .from("vehicles")
-        .select("*, company:companies(*)")
-        .eq("is_active", true)
-        .gte("seats", minSeats)
-        .order("seats", { ascending: true });
+      // Fetch vehicles and company pricing in parallel
+      const [vehiclesRes, pricingRes] = await Promise.all([
+        supabase
+          .from("vehicles")
+          .select("*, company:companies(*)")
+          .eq("is_active", true)
+          .gte("seats", minSeats)
+          .order("seats", { ascending: true }),
+        supabase
+          .from("company_pricing")
+          .select("*"),
+      ]);
+
+      const vehicles = vehiclesRes.data || [];
+      const allPricing = pricingRes.data || [];
+
+      // Build lookup: company_id + category → pricing
+      const pricingMap = new Map<string, { price_per_km: number; min_km_per_day: number }>();
+      for (const p of allPricing) {
+        pricingMap.set(`${p.company_id}_${p.vehicle_category}`, p);
+      }
 
       const options: TransporterOption[] = [];
 
-      for (const v of (vehicles || []).filter((v: { id: string }) => !blockedIds.has(v.id))) {
+      for (const v of vehicles.filter((v: { id: string }) => !blockedIds.has(v.id))) {
         const company = v.company as {
           id: string; name: string; city: string;
           rating: number; total_reviews: number; is_verified: boolean;
+          cui: string; email: string; stripe_account_id: string | null;
+          smartbill_series: string | null;
         } | null;
         if (!company) continue;
 
-        const priceCalc = calculatePrice(
-          pickupCity, dropoffCity, isRoundTrip, dayCount, v.category
-        );
+        // Use company pricing if available, otherwise fallback to default
+        const customPricing = pricingMap.get(`${company.id}_${v.category}`);
+        const priceCalc = customPricing
+          ? calculatePriceCustom(
+              pickupCity, dropoffCity, isRoundTrip, dayCount,
+              customPricing.price_per_km, customPricing.min_km_per_day
+            )
+          : calculatePrice(pickupCity, dropoffCity, isRoundTrip, dayCount, v.category);
         if (!priceCalc) continue;
 
         options.push({
@@ -165,7 +193,13 @@ export function RequestTransportForm() {
           companyRating: company.rating,
           companyReviews: company.total_reviews,
           companyVerified: company.is_verified,
+          companyCui: company.cui || "",
+          companyEmail: company.email || "",
+          companyStripeAccountId: company.stripe_account_id || null,
+          companySmartbillSeries: company.smartbill_series || null,
           estimatedPrice: priceCalc.totalPrice,
+          subtotalWithVat: priceCalc.subtotalWithVat,
+          platformFee: priceCalc.platformFee,
           pricePerKm: priceCalc.tariffPerKm,
           totalKmBillable: priceCalc.totalKmBillable,
         });
@@ -234,7 +268,8 @@ export function RequestTransportForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           offerId: `direct-${selected.vehicleId}-${Date.now()}`,
-          amount: selected.estimatedPrice,
+          subtotalWithVat: selected.subtotalWithVat,
+          platformFee: selected.platformFee,
           currency: "ron",
           description: `Transport ${pickupCity} → ${dropoffCity}, ${departureDate}, ${passengers} pers. | ${selected.companyName}`,
           vehicleId: selected.vehicleId,
@@ -242,6 +277,16 @@ export function RequestTransportForm() {
           requestId,
           departureDate,
           returnDate: isRoundTrip ? returnDate : null,
+          // Stripe Connect
+          transporterStripeAccountId: selected.companyStripeAccountId || null,
+          // Invoice data
+          transporterName: selected.companyName,
+          transporterCui: selected.companyCui,
+          transporterEmail: selected.companyEmail,
+          transporterSeries: selected.companySmartbillSeries || "",
+          route: `${pickupCity} → ${dropoffCity}`,
+          totalKm: selected.totalKmBillable,
+          pricePerKm: selected.pricePerKm,
           billingData: {
             name: `${billingLastName} ${billingFirstName}`.trim(),
             firstName: billingFirstName,
