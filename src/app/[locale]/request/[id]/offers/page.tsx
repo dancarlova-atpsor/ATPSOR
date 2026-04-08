@@ -25,7 +25,7 @@ import {
   Loader2,
   Inbox,
 } from "lucide-react";
-import { VEHICLE_CATEGORIES } from "@/types/database";
+import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { TransportRequest, Offer, Company, Vehicle } from "@/types/database";
 
 const PLATFORM_FEE_PERCENT = 5; // 5% comision ATPSOR inclus in pret
@@ -78,6 +78,14 @@ export default function RequestOffersPage() {
   const [viewingContract, setViewingContract] = useState<string | null>(null);
   const [viewingCalculation, setViewingCalculation] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState<string | null>(null);
+
+  // Billing data state
+  const [billingFirstName, setBillingFirstName] = useState("");
+  const [billingLastName, setBillingLastName] = useState("");
+  const [billingStreet, setBillingStreet] = useState("");
+  const [billingNumber, setBillingNumber] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingCounty, setBillingCounty] = useState("");
 
   useEffect(() => {
     async function fetchData() {
@@ -134,6 +142,8 @@ export default function RequestOffersPage() {
     if (!request) return;
     setProcessingPayment(offerId);
 
+    const billingEmail = (request as TransportRequest & { client_email?: string }).client_email || "";
+
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -143,6 +153,17 @@ export default function RequestOffersPage() {
           amount: totalPrice,
           currency: "ron",
           description: `Transport ${request.pickup_city} → ${request.dropoff_city}, ${request.departure_date}`,
+          billingData: {
+            name: `${billingFirstName} ${billingLastName}`.trim(),
+            firstName: billingFirstName,
+            lastName: billingLastName,
+            street: billingStreet,
+            number: billingNumber,
+            city: billingCity,
+            county: billingCounty,
+            email: billingEmail,
+            address: `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}`,
+          },
         }),
       });
       const data = await res.json();
@@ -441,6 +462,88 @@ export default function RequestOffersPage() {
                     </div>
                   </div>
 
+                  {/* Billing Data */}
+                  <div className="border-t border-gray-100 px-6 py-4">
+                    <h4 className="mb-3 text-sm font-semibold text-gray-900">Date Facturare</h4>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Nume *</label>
+                        <input
+                          type="text"
+                          value={billingLastName}
+                          onChange={(e) => setBillingLastName(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          placeholder="ex: Popescu"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Prenume *</label>
+                        <input
+                          type="text"
+                          value={billingFirstName}
+                          onChange={(e) => setBillingFirstName(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          placeholder="ex: Ion"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Strada *</label>
+                        <input
+                          type="text"
+                          value={billingStreet}
+                          onChange={(e) => setBillingStreet(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          placeholder="ex: Calea Victoriei"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Număr *</label>
+                        <input
+                          type="text"
+                          value={billingNumber}
+                          onChange={(e) => setBillingNumber(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          placeholder="ex: 12A"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Localitate *</label>
+                        <input
+                          type="text"
+                          value={billingCity}
+                          onChange={(e) => setBillingCity(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          placeholder="ex: București"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Județ/Sector *</label>
+                        <select
+                          value={billingCounty}
+                          onChange={(e) => setBillingCounty(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                        >
+                          <option value="">Selectează...</option>
+                          {ROMANIAN_COUNTIES.map((county) => (
+                            <option key={county} value={county}>{county}</option>
+                          ))}
+                          <option value="Sector 1">Sector 1</option>
+                          <option value="Sector 2">Sector 2</option>
+                          <option value="Sector 3">Sector 3</option>
+                          <option value="Sector 4">Sector 4</option>
+                          <option value="Sector 5">Sector 5</option>
+                          <option value="Sector 6">Sector 6</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Accept & Pay */}
                   <div className="border-t border-gray-100 px-6 py-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -457,9 +560,9 @@ export default function RequestOffersPage() {
                       </label>
                       <button
                         onClick={() => handlePayment(offer.id, totalPrice)}
-                        disabled={!isContractAccepted || isProcessing}
+                        disabled={!isContractAccepted || isProcessing || !billingFirstName || !billingLastName || !billingStreet || !billingNumber || !billingCity || !billingCounty}
                         className={`inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold shadow-lg transition-all ${
-                          isContractAccepted
+                          isContractAccepted && billingFirstName && billingLastName && billingStreet && billingNumber && billingCity && billingCounty
                             ? "bg-green-600 text-white hover:bg-green-700"
                             : "cursor-not-allowed bg-gray-200 text-gray-400"
                         }`}

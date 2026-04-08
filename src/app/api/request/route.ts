@@ -29,6 +29,9 @@ export async function POST(request: Request) {
       includedKm,
       pricePerKm,
       overageRate,
+      clientName,
+      clientEmail,
+      clientPhone,
     } = data;
 
     // Build day program HTML
@@ -129,6 +132,15 @@ export async function POST(request: Request) {
           <h2 style="color:#1e40af;font-size:16px;">Detalii Suplimentare</h2>
           <p style="background:white;padding:12px;border-radius:6px;border:1px solid #e5e7eb;">${description}</p>
           ` : ""}
+
+          ${clientName || clientEmail || clientPhone ? `
+          <h2 style="color:#1e40af;font-size:16px;">Date Contact Client</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            ${clientName ? `<tr><td style="padding:6px 0;color:#6b7280;width:140px;">Nume:</td><td style="padding:6px 0;font-weight:bold;">${clientName}</td></tr>` : ""}
+            ${clientEmail ? `<tr><td style="padding:6px 0;color:#6b7280;">Email:</td><td style="padding:6px 0;">${clientEmail}</td></tr>` : ""}
+            ${clientPhone ? `<tr><td style="padding:6px 0;color:#6b7280;">Telefon:</td><td style="padding:6px 0;">${clientPhone}</td></tr>` : ""}
+          </table>
+          ` : ""}
         </div>
 
         <div style="background:#1e40af;padding:12px;border-radius:0 0 8px 8px;text-align:center;">
@@ -150,42 +162,48 @@ export async function POST(request: Request) {
       }
     }
 
-    // Save to database if user is authenticated
+    // Save to database (authenticated or not)
     try {
       const supabase = await createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
+      const insertData: Record<string, unknown> = {
+        pickup_location: pickupLocation || pickupCity,
+        pickup_city: pickupCity,
+        dropoff_location: dropoffLocation || dropoffCity,
+        dropoff_city: dropoffCity,
+        departure_date: departureDate,
+        return_date: returnDate || null,
+        is_round_trip: isRoundTrip || false,
+        passengers: parseInt(passengers) || 1,
+        vehicle_category: vehicleCategory || null,
+        description: description || null,
+        intermediate_cities: intermediateCities || null,
+        client_name: clientName || null,
+        client_email: clientEmail || null,
+        client_phone: clientPhone || null,
+      };
+
       if (user) {
-        const { data: newRequest, error: dbError } = await supabase
-          .from("transport_requests")
-          .insert({
-            client_id: user.id,
-            pickup_location: pickupLocation || pickupCity,
-            pickup_city: pickupCity,
-            dropoff_location: dropoffLocation || dropoffCity,
-            dropoff_city: dropoffCity,
-            departure_date: departureDate,
-            return_date: returnDate || null,
-            is_round_trip: isRoundTrip || false,
-            passengers: parseInt(passengers) || 1,
-            vehicle_category: vehicleCategory || null,
-            description: description || null,
-            intermediate_cities: intermediateCities || null,
-          })
-          .select("id")
-          .single();
-
-        if (dbError) {
-          console.error("DB save error:", dbError);
-        }
-
-        return NextResponse.json({
-          success: true,
-          requestId: newRequest?.id,
-        });
+        insertData.client_id = user.id;
       }
+
+      const { data: newRequest, error: dbError } = await supabase
+        .from("transport_requests")
+        .insert(insertData)
+        .select("id")
+        .single();
+
+      if (dbError) {
+        console.error("DB save error:", dbError);
+      }
+
+      return NextResponse.json({
+        success: true,
+        requestId: newRequest?.id,
+      });
     } catch (dbErr) {
       console.error("DB save error:", dbErr);
     }

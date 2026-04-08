@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "@/i18n/routing";
 import {
   MapPin,
@@ -18,10 +18,14 @@ import {
   CreditCard,
   CheckCircle,
   AlertTriangle,
+  Phone,
+  Mail,
+  User,
 } from "lucide-react";
 import type { VehicleCategory } from "@/types/database";
 import { VEHICLE_CATEGORIES } from "@/types/database";
 import { calculatePrice, type PriceCalculation } from "@/lib/distances";
+import { createClient } from "@/lib/supabase/client";
 
 interface DayProgram {
   day: number;
@@ -49,6 +53,34 @@ export function RequestTransportForm() {
   const [submitting, setSubmitting] = useState(false);
   const [paying, setPaying] = useState(false);
   const [acceptContract, setAcceptContract] = useState(false);
+
+  // Contact fields (for unauthenticated users)
+  const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setIsAuthenticated(true);
+        // Auto-fill from profile
+        supabase
+          .from("profiles")
+          .select("full_name, phone, email")
+          .eq("id", user.id)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              setClientName(data.full_name || "");
+              setClientEmail(data.email || user.email || "");
+              setClientPhone(data.phone || "");
+            }
+          });
+      }
+    });
+  }, []);
 
   // Day-by-day program
   const [dayPrograms, setDayPrograms] = useState<DayProgram[]>([
@@ -106,6 +138,9 @@ export function RequestTransportForm() {
           totalEstimatedKm: priceCalc?.totalKmReal || 0,
           totalBillableKm: priceCalc?.totalKmBillable || 0,
           priceCalculation: priceCalc,
+          clientName,
+          clientEmail,
+          clientPhone,
         }),
       });
     } catch {
@@ -473,6 +508,63 @@ export function RequestTransportForm() {
             </div>
           </div>
         )}
+
+        {/* Contact Info */}
+        <div>
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <User className="h-5 w-5 text-primary-500" />
+            Date Contact *
+          </h3>
+          {isAuthenticated && (
+            <p className="mb-3 text-sm text-green-600">
+              Datele au fost completate automat din profilul tău.
+            </p>
+          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Nume complet *</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  placeholder="ex: Ion Popescu"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email *</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  placeholder="ex: ion@exemplu.ro"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Telefon *</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  placeholder="ex: 0721 234 567"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Additional Details */}
         <div>

@@ -6,7 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 const intlMiddleware = createMiddleware(routing);
 
 // Routes that require authentication
-const PROTECTED_PATTERNS = [/^\/(ro|en)\/dashboard/, /^\/(ro|en)\/request$/];
+const PROTECTED_PATTERNS = [/^\/(ro|en)\/dashboard/];
 
 export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

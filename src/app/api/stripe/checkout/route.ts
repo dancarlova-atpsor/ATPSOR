@@ -9,12 +9,21 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { offerId, amount, currency = "ron", description } =
+    const { offerId, amount, currency = "ron", description, billingData } =
       await request.json();
+
+    const metadata: Record<string, string> = {
+      offerId: offerId || "",
+      userId: user?.id || "",
+    };
+
+    if (billingData) {
+      if (billingData.name) metadata.billing_name = String(billingData.name).slice(0, 500);
+      if (billingData.address) metadata.billing_address = String(billingData.address).slice(0, 500);
+      if (billingData.city) metadata.billing_city = String(billingData.city).slice(0, 500);
+      if (billingData.county) metadata.billing_county = String(billingData.county).slice(0, 500);
+      if (billingData.email) metadata.billing_email = String(billingData.email).slice(0, 500);
+    }
 
     const session = await getStripe().checkout.sessions.create({
       payment_method_types: ["card"],
@@ -34,10 +43,7 @@ export async function POST(request: Request) {
       mode: "payment",
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/ro/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/ro/booking/cancel`,
-      metadata: {
-        offerId,
-        userId: user.id,
-      },
+      metadata,
     });
 
     return NextResponse.json({ url: session.url });
