@@ -46,9 +46,11 @@ const VEHICLE_DOC_TYPES = [
 export default function TransporterDashboard() {
   const t = useTranslations();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<
-    "requests" | "offers" | "vehicles" | "documents" | "pricing" | "profile"
-  >("requests");
+  const validTabs = ["requests", "offers", "vehicles", "documents", "pricing", "profile"] as const;
+  type TabType = typeof validTabs[number];
+  const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
+  const initialTab = validTabs.includes(hashTab as TabType) ? (hashTab as TabType) : "requests";
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
@@ -1059,7 +1061,7 @@ export default function TransporterDashboard() {
                 documentType="company_license"
                 label="Licență Transport"
                 existingDoc={companyDocs.find((d: any) => d.document_type === "company_license") || null}
-                onUploaded={() => window.location.reload()}
+                onUploaded={() => { window.location.hash = "documents"; window.location.reload(); }}
               />
             </div>
           </div>
@@ -1093,7 +1095,7 @@ export default function TransporterDashboard() {
                         documentType={docType.type}
                         label={docType.label}
                         existingDoc={vDocs.find((d: any) => d.document_type === docType.type) || null}
-                        onUploaded={() => window.location.reload()}
+                        onUploaded={() => { window.location.hash = "documents"; window.location.reload(); }}
                       />
                     ))}
                   </div>
