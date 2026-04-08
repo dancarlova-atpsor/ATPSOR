@@ -16,25 +16,43 @@ export function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
+
+    async function loadProfile(userId: string, email: string | undefined) {
+      setIsLoggedIn(true);
+      setUserEmail(email || null);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      if (profile) setUserRole(profile.role);
+    }
+
     async function checkAuth() {
-      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
       if (user) {
-        setIsLoggedIn(true);
-        setUserEmail(user.email || null);
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
+        loadProfile(user.id, user.email);
       }
     }
 
     checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          loadProfile(session.user.id, session.user.email);
+        } else {
+          setIsLoggedIn(false);
+          setUserRole(null);
+          setUserEmail(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   async function handleLogout() {
