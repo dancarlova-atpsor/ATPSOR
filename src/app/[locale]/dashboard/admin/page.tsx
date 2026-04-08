@@ -187,6 +187,33 @@ export default function AdminDashboard() {
     loadData();
   }
 
+  async function deleteCompany(companyId: string, companyName: string) {
+    if (!confirm(`Sigur vrei să ștergi compania "${companyName}"? Toate vehiculele, documentele și ofertele vor fi șterse permanent.`)) return;
+    const supabase = createClient();
+    await supabase.from("companies").delete().eq("id", companyId);
+    loadData();
+  }
+
+  async function toggleVehicleActive(vehicleId: string, currentStatus: boolean) {
+    const supabase = createClient();
+    await supabase
+      .from("vehicles")
+      .update({ is_active: !currentStatus })
+      .eq("id", vehicleId);
+    loadData();
+  }
+
+  async function suspendCompany(companyId: string) {
+    const reason = prompt("Motivul suspendării (va fi vizibil transportatorului):");
+    if (!reason) return;
+    const supabase = createClient();
+    await supabase
+      .from("companies")
+      .update({ is_approved: false, rejection_reason: reason })
+      .eq("id", companyId);
+    loadData();
+  }
+
   async function updateRequestStatus(
     requestId: string,
     newStatus: string
@@ -608,18 +635,42 @@ export default function AdminDashboard() {
                         {c.total_reviews} review-uri
                       </div>
                     </div>
-                    <button
-                      onClick={() =>
-                        toggleCompanyVerification(c.id, c.is_verified)
-                      }
-                      className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                        c.is_verified
-                          ? "bg-red-50 text-red-600 hover:bg-red-100"
-                          : "bg-green-50 text-green-600 hover:bg-green-100"
-                      }`}
-                    >
-                      {c.is_verified ? "Anulează verificare" : "Verifică"}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      {!c.is_approved && (
+                        <button onClick={() => approveCompany(c.id)}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
+                          Aprobă
+                        </button>
+                      )}
+                      <button
+                        onClick={() => toggleCompanyVerification(c.id, c.is_verified)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                          c.is_verified ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-green-50 text-green-600 hover:bg-green-100"
+                        }`}>
+                        {c.is_verified ? "Anulează verificare" : "Verifică"}
+                      </button>
+                      {c.is_approved && (
+                        <button onClick={() => suspendCompany(c.id)}
+                          className="rounded-lg bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100">
+                          Suspendă
+                        </button>
+                      )}
+                      <button onClick={() => deleteCompany(c.id, c.name)}
+                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100">
+                        Șterge
+                      </button>
+                    </div>
+                  </div>
+                  {/* Status badges */}
+                  <div className="mt-2 flex gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.is_approved ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-700"}`}>
+                      {c.is_approved ? "Aprobat" : "Neaprobat"}
+                    </span>
+                    {c.rejection_reason && (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
+                        Motiv: {c.rejection_reason}
+                      </span>
+                    )}
                   </div>
                 </div>
                 {/* Company vehicles */}
@@ -638,12 +689,18 @@ export default function AdminDashboard() {
                       {vehicles
                         .filter((v) => v.company_id === c.id)
                         .map((v) => (
-                          <span
-                            key={v.id}
-                            className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600"
-                          >
-                            {v.name} ({v.seats} loc.)
-                          </span>
+                          <div key={v.id} className="flex items-center gap-1">
+                            <span className={`rounded-full px-3 py-1 text-xs ${v.is_active ? "bg-gray-100 text-gray-600" : "bg-red-100 text-red-600 line-through"}`}>
+                              {v.name} ({v.seats} loc.)
+                            </span>
+                            <button
+                              onClick={() => toggleVehicleActive(v.id, v.is_active)}
+                              className={`rounded px-2 py-0.5 text-xs font-medium ${v.is_active ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
+                              title={v.is_active ? "Pune în repaus" : "Activează"}
+                            >
+                              {v.is_active ? "Repaus" : "Activează"}
+                            </button>
+                          </div>
                         ))}
                     </div>
                   </div>
