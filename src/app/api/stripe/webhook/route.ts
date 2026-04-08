@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       const endDate = returnDate || departureDate;
 
       // Block vehicle for the booked dates
-      await supabase.from("blocuri_vehicule").insert({
+      await supabase.from("vehicle_blocks").insert({
         vehicle_id: vehicleId,
         start_date: departureDate,
         end_date: endDate,
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
       // Create booking record
       const { data: booking } = await supabase
-        .from("rezervări")
+        .from("bookings")
         .insert({
           offer_id: null,
           client_id: userId || null,
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         .single();
 
       if (booking) {
-        await supabase.from("plăți").insert({
+        await supabase.from("payments").insert({
           booking_id: booking.id,
           stripe_payment_id: session.payment_intent as string,
           amount: (session.amount_total || 0) / 100,
@@ -95,8 +95,8 @@ export async function POST(request: Request) {
     // Classic offer-based flow
     if (offerId && !offerId.startsWith("direct-")) {
       const { data: offer } = await supabase
-        .from("oferte")
-        .select("*, request:cereri_de_transport(*)")
+        .from("offers")
+        .select("*, request:transport_requests(*)")
         .eq("id", offerId)
         .single();
 
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         const req = offer.request as { departure_date?: string; return_date?: string } | null;
 
         const { data: booking } = await supabase
-          .from("rezervări")
+          .from("bookings")
           .insert({
             offer_id: offerId,
             client_id: userId || null,
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
           .single();
 
         if (booking) {
-          await supabase.from("plăți").insert({
+          await supabase.from("payments").insert({
             booking_id: booking.id,
             stripe_payment_id: session.payment_intent as string,
             amount: offer.price,
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
 
           // Block vehicle if we have vehicle_id and dates
           if (offer.vehicle_id && req?.departure_date) {
-            await supabase.from("blocuri_vehicule").insert({
+            await supabase.from("vehicle_blocks").insert({
               vehicle_id: offer.vehicle_id,
               start_date: req.departure_date,
               end_date: req.return_date || req.departure_date,

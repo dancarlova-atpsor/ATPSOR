@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     // Verify the user owns this company
     const { data: company, error: companyError } = await supabase
-      .from("companii")
+      .from("companies")
       .select("id, owner_id")
       .eq("id", companyId)
       .single();
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     // Create the booking link
     const { data: bookingLink, error: insertError } = await supabase
-      .from("linkuri_de_rezervare")
+      .from("booking_links")
       .insert({
         company_id: companyId,
         vehicle_id: vehicleId,

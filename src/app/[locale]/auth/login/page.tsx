@@ -42,7 +42,7 @@ export default function LoginPage() {
       } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
-          .from("profiluri")
+          .from("profiles")
           .select("role")
           .eq("id", user.id)
           .single();

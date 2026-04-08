@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
   // Role-based dashboard access
   if (user && /^\/(ro|en)\/dashboard/.test(pathname)) {
     const { data: profile } = await supabase
-      .from("profiluri")
+      .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();

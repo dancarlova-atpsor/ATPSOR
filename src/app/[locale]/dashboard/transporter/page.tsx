@@ -115,7 +115,7 @@ export default function TransporterDashboard() {
 
       // Get company
       const { data: comp } = await supabase
-        .from("companii")
+        .from("companies")
         .select("*")
         .eq("owner_id", user.id)
         .single();
@@ -148,12 +148,12 @@ export default function TransporterDashboard() {
         pricingRes,
       ] = await Promise.all([
         supabase
-          .from("vehicule")
+          .from("vehicles")
           .select("*")
           .eq("company_id", comp.id)
           .order("created_at", { ascending: false }),
         supabase
-          .from("cereri_de_transport")
+          .from("transport_requests")
           .select("*")
           .in("status", ["pending", "active"])
           .gte(
@@ -162,26 +162,26 @@ export default function TransporterDashboard() {
           )
           .order("created_at", { ascending: false }),
         supabase
-          .from("documente_companie")
+          .from("company_documents")
           .select("*")
           .eq("company_id", comp.id),
         supabase
-          .from("documente_vehicul")
+          .from("vehicle_documents")
           .select("*")
           .eq("company_id", comp.id),
         supabase
-          .from("oferte")
+          .from("offers")
           .select(
-            "*, request:cereri_de_transport(*), vehicle:vehicule(*)"
+            "*, request:transport_requests(*), vehicle:vehicles(*)"
           )
           .eq("company_id", comp.id)
           .order("created_at", { ascending: false }),
         supabase
-          .from("rezervări")
+          .from("bookings")
           .select("total_price")
           .eq("company_id", comp.id),
         supabase
-          .from("prețuri_companie")
+          .from("company_pricing")
           .select("*")
           .eq("company_id", comp.id),
       ]);
@@ -193,7 +193,7 @@ export default function TransporterDashboard() {
         if (vehicleIds.length > 0) {
           const today = new Date().toISOString().split("T")[0];
           const { data: blocksData } = await supabase
-            .from("blocuri_vehicule")
+            .from("vehicle_blocks")
             .select("*")
             .in("vehicle_id", vehicleIds)
             .gte("end_date", today)
@@ -231,7 +231,7 @@ export default function TransporterDashboard() {
     setSavingBlock(true);
     const supabase = createClient();
     const { data, error } = await supabase
-      .from("blocuri_vehicule")
+      .from("vehicle_blocks")
       .insert({
         vehicle_id: blockingVehicleId,
         start_date: blockStart,
@@ -251,7 +251,7 @@ export default function TransporterDashboard() {
 
   async function removeBlock(blockId: string) {
     const supabase = createClient();
-    await supabase.from("blocuri_vehicule").delete().eq("id", blockId);
+    await supabase.from("vehicle_blocks").delete().eq("id", blockId);
     setVehicleBlocks((prev) => prev.filter((b) => b.id !== blockId));
   }
 
@@ -293,7 +293,7 @@ export default function TransporterDashboard() {
     }
 
     const { error } = await supabase
-      .from("companii")
+      .from("companies")
       .update({
         description: profileForm.description.trim() || null,
         address: profileForm.address.trim(),
@@ -330,7 +330,7 @@ export default function TransporterDashboard() {
 
     const supabase = createClient();
     const { error } = await supabase
-      .from("companii")
+      .from("companies")
       .update({
         contract_template_url: result.url,
         contract_template_name: contractTemplateFile.name,
@@ -363,7 +363,7 @@ export default function TransporterDashboard() {
 
     const supabase = createClient();
     const { data, error } = await supabase
-      .from("companii")
+      .from("companies")
       .insert({
         owner_id: user.id,
         name: companyForm.name.trim(),
@@ -593,7 +593,7 @@ export default function TransporterDashboard() {
 
     if (existing) {
       const { data, error } = await supabase
-        .from("prețuri_companie")
+        .from("company_pricing")
         .update({ price_per_km: pricePerKm, min_km_per_day: minKmPerDay })
         .eq("id", existing.id)
         .select()
@@ -603,7 +603,7 @@ export default function TransporterDashboard() {
       }
     } else {
       const { data, error } = await supabase
-        .from("prețuri_companie")
+        .from("company_pricing")
         .insert({
           company_id: company.id,
           vehicle_category: category,

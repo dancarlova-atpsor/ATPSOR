@@ -63,7 +63,7 @@ export default function AdminDashboard() {
     }
 
     const { data: profile } = await supabase
-      .from("profiluri")
+      .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
@@ -87,41 +87,41 @@ export default function AdminDashboard() {
       vehicleDocsRes,
     ] = await Promise.all([
       supabase
-        .from("profiluri")
+        .from("profiles")
         .select("*")
         .order("created_at", { ascending: false }),
       supabase
-        .from("companii")
+        .from("companies")
         .select("*, owner:profiles(email, full_name)")
         .order("created_at", { ascending: false }),
-      supabase.from("vehicule").select("*, company:companii(name)"),
+      supabase.from("vehicles").select("*, company:companies(name)"),
       supabase
-        .from("cereri_de_transport")
-        .select("*, client:profiluri(email, full_name)")
+        .from("transport_requests")
+        .select("*, client:profiles(email, full_name)")
         .order("created_at", { ascending: false }),
       supabase
-        .from("oferte")
+        .from("offers")
         .select(
-          "*, company:companii(name), request:cereri_de_transport(pickup_city, dropoff_city), vehicle:vehicule(name)"
+          "*, company:companies(name), request:transport_requests(pickup_city, dropoff_city), vehicle:vehicles(name)"
         )
         .order("created_at", { ascending: false }),
       supabase
-        .from("rezervări")
+        .from("bookings")
         .select(
-          "*, company:companii(name), client:profiluri(email, full_name)"
+          "*, company:companies(name), client:profiles(email, full_name)"
         )
         .order("created_at", { ascending: false }),
       supabase
-        .from("plăți")
+        .from("payments")
         .select("*")
         .order("created_at", { ascending: false }),
       supabase
-        .from("documente_companie")
-        .select("*, company:companii(name)")
+        .from("company_documents")
+        .select("*, company:companies(name)")
         .order("created_at", { ascending: false }),
       supabase
-        .from("documente_vehicul")
-        .select("*, vehicle:vehicule(name), company:companii(name)")
+        .from("vehicle_documents")
+        .select("*, vehicle:vehicles(name), company:companies(name)")
         .order("created_at", { ascending: false }),
     ]);
 
@@ -144,7 +144,7 @@ export default function AdminDashboard() {
   ) {
     const supabase = createClient();
     await supabase
-      .from("profiluri")
+      .from("profiles")
       .update({ role: newRole })
       .eq("id", userId);
     loadData();
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
   ) {
     const supabase = createClient();
     await supabase
-      .from("companii")
+      .from("companies")
       .update({ is_verified: !currentStatus })
       .eq("id", companyId);
     loadData();
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
   ) {
     const supabase = createClient();
     await supabase
-      .from("cereri_de_transport")
+      .from("transport_requests")
       .update({ status: newStatus })
       .eq("id", requestId);
     loadData();

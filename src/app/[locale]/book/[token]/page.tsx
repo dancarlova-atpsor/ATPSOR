@@ -70,7 +70,7 @@ export default function BookPage() {
     try {
       const supabase = createClient();
       const { data, error: dbError } = await supabase
-        .from("linkuri_de_rezervare")
+        .from("booking_links")
         .select(
           `
           *,

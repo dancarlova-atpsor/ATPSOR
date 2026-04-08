@@ -61,7 +61,7 @@ export default function SendOfferPage() {
 
       // Fetch the transport request
       const { data: request } = await supabase
-        .from("cereri_de_transport")
+        .from("transport_requests")
         .select("*")
         .eq("id", requestId)
         .single();
@@ -70,7 +70,7 @@ export default function SendOfferPage() {
 
       // Fetch transporter's company
       const { data: comp } = await supabase
-        .from("companii")
+        .from("companies")
         .select("*")
         .eq("owner_id", user.id)
         .single();
@@ -80,7 +80,7 @@ export default function SendOfferPage() {
 
         // Fetch company's vehicles
         const { data: vehs } = await supabase
-          .from("vehicule")
+          .from("vehicles")
           .select("*")
           .eq("company_id", comp.id)
           .eq("is_active", true)
@@ -145,7 +145,7 @@ export default function SendOfferPage() {
     }
 
     // Insert offer
-    const { error: offerError } = await supabase.from("oferte").insert({
+    const { error: offerError } = await supabase.from("offers").insert({
       request_id: requestId,
       company_id: company.id,
       vehicle_id: vehicleId,

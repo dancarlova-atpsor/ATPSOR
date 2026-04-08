@@ -98,7 +98,7 @@ export function RequestTransportForm() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         supabase
-          .from("profiluri")
+          .from("profiles")
           .select("full_name, phone, email")
           .eq("id", user.id)
           .single()
@@ -133,7 +133,7 @@ export function RequestTransportForm() {
 
       // Get blocked vehicle IDs for the selected date range (overlap check)
       const { data: blocks } = await supabase
-        .from("blocuri_vehicule")
+        .from("vehicle_blocks")
         .select("vehicle_id")
         .lte("start_date", endDate)
         .gte("end_date", departureDate);
@@ -171,13 +171,13 @@ export function RequestTransportForm() {
             }).then((r) => r.json()).catch(() => ({ fallback: true }))
           : Promise.resolve(null),
         supabase
-          .from("vehicule")
-          .select("*, company:companii(*)")
+          .from("vehicles")
+          .select("*, company:companies(*)")
           .eq("is_active", true)
           .gte("seats", minSeats)
           .order("seats", { ascending: true }),
         supabase
-          .from("prețuri_companie")
+          .from("company_pricing")
           .select("*"),
       ]);
 

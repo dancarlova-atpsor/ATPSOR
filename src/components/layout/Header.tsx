@@ -22,7 +22,7 @@ export function Header() {
       setIsLoggedIn(true);
       setUserEmail(email || null);
       const { data: profile } = await supabase
-        .from("profiluri")
+        .from("profiles")
         .select("role")
         .eq("id", userId)
         .single();

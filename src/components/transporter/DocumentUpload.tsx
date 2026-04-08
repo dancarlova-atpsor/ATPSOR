@@ -57,7 +57,7 @@ export function DocumentUpload({
         // Vehicle document
         if (existingDoc) {
           await supabase
-            .from("documente_vehicul")
+            .from("vehicle_documents")
             .update({
               file_url: result.url,
               expiry_date: expiryDate,
@@ -65,7 +65,7 @@ export function DocumentUpload({
             })
             .eq("id", existingDoc.id);
         } else {
-          await supabase.from("documente_vehicul").insert({
+          await supabase.from("vehicle_documents").insert({
             vehicle_id: vehicleId,
             company_id: companyId,
             document_type: documentType,
@@ -77,7 +77,7 @@ export function DocumentUpload({
         // Company document
         if (existingDoc) {
           await supabase
-            .from("documente_companie")
+            .from("company_documents")
             .update({
               file_url: result.url,
               expiry_date: expiryDate,
@@ -85,7 +85,7 @@ export function DocumentUpload({
             })
             .eq("id", existingDoc.id);
         } else {
-          await supabase.from("documente_companie").insert({
+          await supabase.from("company_documents").insert({
             company_id: companyId,
             document_type: documentType,
             file_url: result.url,
