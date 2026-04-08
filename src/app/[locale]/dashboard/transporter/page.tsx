@@ -1613,6 +1613,73 @@ export default function TransporterDashboard() {
               )}
             </div>
           </div>
+
+          {/* SmartBill Facturare */}
+          <div className="rounded-xl bg-white p-6 shadow-md">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <DollarSign className="h-5 w-5 text-primary-500" />
+              SmartBill - Facturare Automată
+            </h3>
+            <p className="mb-4 text-sm text-gray-500">
+              Conectează-ți contul SmartBill gratuit pentru a emite facturi automat către clienți.
+              Creează un cont gratuit la <a href="https://www.smartbill.ro" target="_blank" rel="noopener noreferrer" className="text-primary-500 underline">smartbill.ro</a> dacă nu ai deja.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">SmartBill Email (username)</label>
+                <input
+                  type="email"
+                  value={company.smartbill_username || ""}
+                  onChange={(e) => setCompany({...company, smartbill_username: e.target.value})}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="email@smartbill.ro"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">SmartBill Token (API Key)</label>
+                <input
+                  type="password"
+                  value={company.smartbill_token || ""}
+                  onChange={(e) => setCompany({...company, smartbill_token: e.target.value})}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="Se găsește în SmartBill → Setări → API"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Serie factură</label>
+                <input
+                  type="text"
+                  value={company.smartbill_series || ""}
+                  onChange={(e) => setCompany({...company, smartbill_series: e.target.value})}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="Ex: FCT, SMRT, etc."
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  const supabase = createClient();
+                  await supabase.from("companies").update({
+                    smartbill_username: company.smartbill_username,
+                    smartbill_token: company.smartbill_token,
+                    smartbill_series: company.smartbill_series,
+                  }).eq("id", company.id);
+                  alert("SmartBill salvat!");
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
+              >
+                <Save className="h-4 w-4" />
+                Salvează SmartBill
+              </button>
+
+              {company.smartbill_username && company.smartbill_token && (
+                <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                  <CheckCircle className="mr-1 inline h-4 w-4" />
+                  SmartBill configurat. Facturile vor fi emise automat pe firma ta la fiecare plată.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

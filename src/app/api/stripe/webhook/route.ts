@@ -72,6 +72,13 @@ export async function POST(request: Request) {
 
         // Generate SmartBill invoices (fire-and-forget)
         if (meta.transporterCui && meta.route) {
+          // Fetch transporter SmartBill credentials
+          let sbUsername = "";
+          let sbToken = "";
+          if (companyId) {
+            const { data: comp } = await supabase.from("companies").select("smartbill_username, smartbill_token").eq("id", companyId).single();
+            if (comp) { sbUsername = comp.smartbill_username || ""; sbToken = comp.smartbill_token || ""; }
+          }
           generateAllInvoices({
             bookingId: booking.id,
             subtotalWithVat: parseFloat(meta.subtotalWithVat || "0"),
@@ -84,8 +91,13 @@ export async function POST(request: Request) {
             transporterCui: meta.transporterCui || "",
             transporterEmail: meta.transporterEmail || "",
             transporterSeries: meta.transporterSeries || "",
+            transporterSmartBillUsername: sbUsername,
+            transporterSmartBillToken: sbToken,
             clientName: meta.billing_name || "",
             clientEmail: meta.billing_email || "",
+            clientAddress: meta.billing_address || "",
+            clientCity: meta.billing_city || "",
+            clientCounty: meta.billing_county || "",
           }).catch((err) => console.error("Invoice generation error:", err));
         }
       }
@@ -138,6 +150,13 @@ export async function POST(request: Request) {
 
           // Generate SmartBill invoices (fire-and-forget)
           if (meta.transporterCui && meta.route) {
+            // Fetch transporter SmartBill credentials
+            let sbUser = "";
+            let sbTok = "";
+            if (offer.company_id) {
+              const { data: comp2 } = await supabase.from("companies").select("smartbill_username, smartbill_token").eq("id", offer.company_id).single();
+              if (comp2) { sbUser = comp2.smartbill_username || ""; sbTok = comp2.smartbill_token || ""; }
+            }
             generateAllInvoices({
               bookingId: booking.id,
               subtotalWithVat: parseFloat(meta.subtotalWithVat || "0"),
@@ -150,8 +169,13 @@ export async function POST(request: Request) {
               transporterCui: meta.transporterCui || "",
               transporterEmail: meta.transporterEmail || "",
               transporterSeries: meta.transporterSeries || "",
+              transporterSmartBillUsername: sbUser,
+              transporterSmartBillToken: sbTok,
               clientName: meta.billing_name || "",
               clientEmail: meta.billing_email || "",
+              clientAddress: meta.billing_address || "",
+              clientCity: meta.billing_city || "",
+              clientCounty: meta.billing_county || "",
             }).catch((err) => console.error("Invoice generation error:", err));
           }
         }

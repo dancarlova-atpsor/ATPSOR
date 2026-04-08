@@ -130,11 +130,18 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<SmartB
 }
 
 // Generate transport invoice (Transporter → Client)
+// Uses transporter's own SmartBill credentials if available
 export async function generateTransportInvoice(params: {
   transporterCui: string;
   transporterSeries: string;
+  transporterSmartBillUsername?: string;
+  transporterSmartBillToken?: string;
   clientName: string;
   clientEmail: string;
+  clientVatCode?: string;
+  clientAddress?: string;
+  clientCity?: string;
+  clientCounty?: string;
   route: string;
   date: string;
   totalKm: number;
@@ -142,12 +149,23 @@ export async function generateTransportInvoice(params: {
   totalWithoutVat: number;
   vatRate: number;
 }): Promise<SmartBillResponse | null> {
+  // Build auth header from transporter's credentials or fall back to ATPSOR
+  let authHeader: string | undefined;
+  if (params.transporterSmartBillUsername && params.transporterSmartBillToken) {
+    authHeader = "Basic " + Buffer.from(`${params.transporterSmartBillUsername}:${params.transporterSmartBillToken}`).toString("base64");
+  }
+
   return createInvoice({
     seriesName: params.transporterSeries,
     issuerCui: params.transporterCui,
+    authHeader,
     client: {
       name: params.clientName,
       email: params.clientEmail,
+      vatCode: params.clientVatCode,
+      address: params.clientAddress,
+      city: params.clientCity,
+      county: params.clientCounty,
     },
     products: [
       {

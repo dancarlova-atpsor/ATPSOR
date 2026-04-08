@@ -58,6 +58,8 @@ export interface Company {
   total_reviews: number;
   stripe_account_id: string | null;
   smartbill_series: string | null;
+  smartbill_username: string | null;
+  smartbill_token: string | null;
   contract_template_url: string | null;
   contract_template_name: string | null;
   is_approved: boolean;

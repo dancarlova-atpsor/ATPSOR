@@ -26,9 +26,15 @@ interface GenerateAllInvoicesParams {
   transporterCui: string;
   transporterEmail: string;
   transporterSeries: string;
+  transporterSmartBillUsername?: string;
+  transporterSmartBillToken?: string;
   // Client
   clientName: string;
   clientEmail: string;
+  clientVatCode?: string;
+  clientAddress?: string;
+  clientCity?: string;
+  clientCounty?: string;
 }
 
 async function saveInvoice(
@@ -92,8 +98,14 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
     const result = await generateTransportInvoice({
       transporterCui: params.transporterCui,
       transporterSeries: params.transporterSeries,
+      transporterSmartBillUsername: params.transporterSmartBillUsername,
+      transporterSmartBillToken: params.transporterSmartBillToken,
       clientName: params.clientName,
       clientEmail: params.clientEmail,
+      clientVatCode: params.clientVatCode,
+      clientAddress: params.clientAddress,
+      clientCity: params.clientCity,
+      clientCounty: params.clientCounty,
       route: params.route,
       date: params.date,
       totalKm: params.totalKm,
