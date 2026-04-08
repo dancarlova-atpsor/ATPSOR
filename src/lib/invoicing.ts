@@ -8,8 +8,16 @@ import {
   type SmartBillResponse,
 } from "./smartbill";
 import { TVA_RATE, PLATFORM_FEE_RATE } from "./distances";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 import type { InvoiceType } from "@/types/database";
+
+function createServiceClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  );
+}
 
 const LUXURIA_COMMISSION_RATE = 0.50; // 50% din comisionul platformei
 
@@ -47,7 +55,7 @@ async function saveInvoice(
   result: SmartBillResponse | null,
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     await supabase.from("invoices").upsert(
       {
         booking_id: bookingId,
@@ -77,7 +85,7 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
 
   // Check idempotency - nu generam duplicate
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { data: existing } = await supabase
       .from("invoices")
       .select("invoice_type, status")

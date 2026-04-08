@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/config";
-import { createClient } from "@/lib/supabase/server";
 import { generateAllInvoices } from "@/lib/invoicing";
 import Stripe from "stripe";
+import { createServerClient } from "@supabase/ssr";
+
+function createServiceClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  );
+}
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -31,7 +39,7 @@ export async function POST(request: Request) {
       departureDate, returnDate,
     } = meta;
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Direct booking flow (no offer in DB)
     if (vehicleId && departureDate) {
