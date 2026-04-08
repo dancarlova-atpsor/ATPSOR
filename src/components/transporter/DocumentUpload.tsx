@@ -60,6 +60,7 @@ export function DocumentUpload({
             .from("vehicle_documents")
             .update({
               file_url: result.url,
+              file_name: file.name,
               expiry_date: expiryDate,
               is_verified: false,
             })
@@ -70,6 +71,7 @@ export function DocumentUpload({
             company_id: companyId,
             document_type: documentType,
             file_url: result.url,
+            file_name: file.name,
             expiry_date: expiryDate,
           });
         }
@@ -80,6 +82,7 @@ export function DocumentUpload({
             .from("company_documents")
             .update({
               file_url: result.url,
+              file_name: file.name,
               expiry_date: expiryDate,
               is_verified: false,
             })
@@ -89,6 +92,7 @@ export function DocumentUpload({
             company_id: companyId,
             document_type: documentType,
             file_url: result.url,
+            file_name: file.name,
             expiry_date: expiryDate,
           });
         }
