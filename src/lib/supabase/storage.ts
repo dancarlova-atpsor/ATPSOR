@@ -1,6 +1,6 @@
 import { createClient } from "./client";
 
-const BUCKET = "încărcări";
+const BUCKET = "uploads";
 
 export async function uploadFile(
   file: File,
