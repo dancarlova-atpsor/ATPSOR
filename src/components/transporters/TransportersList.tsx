@@ -62,7 +62,10 @@ export function TransportersList() {
           .from("companies")
           .select(
             "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url, pickup_cities"
-          ),
+          )
+          .order("is_verified", { ascending: false })
+          .order("rating", { ascending: false })
+          .order("name"),
         supabase
           .from("company_pricing")
           .select("company_id, vehicle_category, price_per_km"),
