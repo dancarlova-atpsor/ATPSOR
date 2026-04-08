@@ -53,8 +53,10 @@ export default function LoginPage() {
             : profile?.role === "transporter"
               ? "/dashboard/transporter"
               : "/dashboard/client";
+        router.refresh();
         router.push(dashboard);
       } else {
+        router.refresh();
         router.push("/dashboard/client");
       }
     } catch {

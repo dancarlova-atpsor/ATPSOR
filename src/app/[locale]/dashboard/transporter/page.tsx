@@ -22,9 +22,14 @@ import {
   Loader2,
   Lock,
   Unlock,
+  Building2,
+  Save,
+  Camera,
+  FileSignature,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
+import { uploadFile } from "@/lib/supabase/storage";
 import BookingLinkForm from "@/components/transporter/BookingLinkForm";
 import { DocumentUpload } from "@/components/transporter/DocumentUpload";
 
@@ -42,7 +47,7 @@ export default function TransporterDashboard() {
   const t = useTranslations();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    "requests" | "offers" | "vehicles" | "documents" | "pricing"
+    "requests" | "offers" | "vehicles" | "documents" | "pricing" | "profile"
   >("requests");
 
   const [loading, setLoading] = useState(true);
@@ -63,6 +68,19 @@ export default function TransporterDashboard() {
   const [pricing, setPricing] = useState<any[]>([]);
   const [savingPricing, setSavingPricing] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  // Profile editing state
+  const [profileForm, setProfileForm] = useState({
+    description: "", address: "", city: "", county: "",
+    phone: "", email: "", website: "",
+  });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState("");
+  const [contractTemplateFile, setContractTemplateFile] = useState<File | null>(null);
+  const [savingContract, setSavingContract] = useState(false);
+  const [contractMsg, setContractMsg] = useState("");
 
   // Company creation form state
   const [companyForm, setCompanyForm] = useState({
@@ -106,6 +124,16 @@ export default function TransporterDashboard() {
       }
 
       setCompany(comp);
+      setProfileForm({
+        description: comp.description || "",
+        address: comp.address || "",
+        city: comp.city || "",
+        county: comp.county || "",
+        phone: comp.phone || "",
+        email: comp.email || "",
+        website: comp.website || "",
+      });
+      setLogoPreview(comp.logo_url || null);
 
       // Fetch all data in parallel
       const [
@@ -246,6 +274,75 @@ export default function TransporterDashboard() {
         d.expiry_date >= today
     );
     return hasItp && hasRca && hasCopy && hasInsurance;
+  }
+
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!company) return;
+    setSavingProfile(true);
+    setProfileMsg("");
+
+    const supabase = createClient();
+    let logoUrl = company.logo_url;
+
+    if (logoFile) {
+      const result = await uploadFile(logoFile, `logos/${company.id}`);
+      if (result) logoUrl = result.url;
+    }
+
+    const { error } = await supabase
+      .from("companies")
+      .update({
+        description: profileForm.description.trim() || null,
+        address: profileForm.address.trim(),
+        city: profileForm.city.trim(),
+        county: profileForm.county,
+        phone: profileForm.phone.trim(),
+        email: profileForm.email.trim(),
+        website: profileForm.website.trim() || null,
+        logo_url: logoUrl,
+      })
+      .eq("id", company.id);
+
+    if (error) {
+      setProfileMsg("Eroare la salvare: " + error.message);
+    } else {
+      setCompany({ ...company, ...profileForm, logo_url: logoUrl });
+      setProfileMsg("Profil salvat cu succes!");
+      setLogoFile(null);
+    }
+    setSavingProfile(false);
+  }
+
+  async function saveContractTemplate() {
+    if (!company || !contractTemplateFile) return;
+    setSavingContract(true);
+    setContractMsg("");
+
+    const result = await uploadFile(contractTemplateFile, `contract-templates/${company.id}`);
+    if (!result) {
+      setContractMsg("Eroare la încărcarea fișierului.");
+      setSavingContract(false);
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("companies")
+      .update({
+        contract_template_url: result.url,
+        contract_template_name: contractTemplateFile.name,
+      })
+      .eq("id", company.id);
+
+    if (error) {
+      setContractMsg("Eroare la salvare: " + error.message);
+    } else {
+      setCompany({ ...company, contract_template_url: result.url, contract_template_name: contractTemplateFile.name });
+      setContractMsg("Contract template salvat!");
+      setContractTemplateFile(null);
+    }
+    setSavingContract(false);
   }
 
   if (loading) {
@@ -546,6 +643,11 @@ export default function TransporterDashboard() {
       key: "offers" as const,
       label: t("dashboard.transporter.myOffers"),
       icon: MessageSquare,
+    },
+    {
+      key: "profile" as const,
+      label: "Profil Companie",
+      icon: Building2,
     },
   ];
 
@@ -1082,6 +1184,228 @@ export default function TransporterDashboard() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {activeTab === "profile" && (
+        <div className="space-y-6">
+          {/* Profil Companie */}
+          <div className="rounded-xl bg-white p-6 shadow-md">
+            <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <Building2 className="h-5 w-5 text-primary-500" />
+              Profil Companie
+            </h3>
+
+            {profileMsg && (
+              <div className={`mb-4 rounded-lg p-3 text-sm ${profileMsg.includes("Eroare") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
+                {profileMsg}
+              </div>
+            )}
+
+            {/* Logo */}
+            <div className="mb-6 flex items-center gap-6">
+              <div className="relative">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo" className="h-24 w-24 rounded-xl object-cover border border-gray-200" />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-gray-100 border border-gray-200">
+                    <Camera className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                  <Upload className="h-4 w-4" />
+                  Schimbă logo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setLogoFile(file);
+                        setLogoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                </label>
+                <p className="mt-1 text-xs text-gray-400">JPG, PNG. Max 2MB.</p>
+              </div>
+            </div>
+
+            {/* Read-only fields */}
+            <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg bg-gray-50 p-4 sm:grid-cols-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500">Nume firmă</label>
+                <p className="mt-1 font-semibold text-gray-900">{company.name}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">CUI</label>
+                <p className="mt-1 font-semibold text-gray-900">{company.cui}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Nr. licență</label>
+                <p className="mt-1 font-semibold text-gray-900">{company.license_number}</p>
+              </div>
+            </div>
+
+            {/* Editable form */}
+            <form onSubmit={saveProfile} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Descriere companie</label>
+                <textarea
+                  value={profileForm.description}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="Prezentare scurtă a companiei..."
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Adresă *</label>
+                <input
+                  type="text" required
+                  value={profileForm.address}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Oraș *</label>
+                  <input
+                    type="text" required
+                    value={profileForm.city}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, city: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Județ *</label>
+                  <select
+                    required
+                    value={profileForm.county}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, county: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  >
+                    <option value="">Selectează</option>
+                    {ROMANIAN_COUNTIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Telefon *</label>
+                  <input
+                    type="tel" required
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Email *</label>
+                  <input
+                    type="email" required
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Website</label>
+                <input
+                  type="url"
+                  value={profileForm.website}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, website: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="https://www.firma.ro"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+              >
+                {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvează profilul
+              </button>
+            </form>
+          </div>
+
+          {/* Contract Template */}
+          <div className="rounded-xl bg-white p-6 shadow-md">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <FileSignature className="h-5 w-5 text-primary-500" />
+              Contract Template
+            </h3>
+            <p className="mb-4 text-sm text-gray-500">
+              Încarcă modelul tău de contract. Acesta va fi atașat automat la ofertele trimise clienților.
+              Clientul va putea citi și accepta contractul înainte de plată.
+            </p>
+
+            {contractMsg && (
+              <div className={`mb-4 rounded-lg p-3 text-sm ${contractMsg.includes("Eroare") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
+                {contractMsg}
+              </div>
+            )}
+
+            {company.contract_template_url && (
+              <div className="mb-4 flex items-center gap-3 rounded-lg bg-green-50 p-3">
+                <FileCheck className="h-5 w-5 text-green-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-700">Contract încărcat</p>
+                  <p className="text-xs text-green-600">{company.contract_template_name}</p>
+                </div>
+                <a
+                  href={company.contract_template_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-green-700 underline hover:text-green-800"
+                >
+                  Vizualizează
+                </a>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="cursor-pointer inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 text-sm font-medium text-gray-600 hover:border-primary-400 hover:text-primary-600">
+                <Upload className="h-4 w-4" />
+                {company.contract_template_url ? "Înlocuiește contractul" : "Încarcă contract (PDF)"}
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setContractTemplateFile(file);
+                  }}
+                />
+              </label>
+              {contractTemplateFile && (
+                <>
+                  <span className="text-sm text-gray-500">{contractTemplateFile.name}</span>
+                  <button
+                    onClick={saveContractTemplate}
+                    disabled={savingContract}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+                  >
+                    {savingContract ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvează
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

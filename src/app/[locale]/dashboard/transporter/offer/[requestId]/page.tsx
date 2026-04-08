@@ -36,6 +36,7 @@ export default function SendOfferPage() {
   const [includesFuel, setIncludesFuel] = useState(true);
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [useTemplate, setUseTemplate] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -115,15 +116,18 @@ export default function SendOfferPage() {
 
   const isImage = contractFile?.type.startsWith("image/");
 
+  const hasTemplate = company?.contract_template_url;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!contractFile || !company) return;
+    if (!company) return;
+    if (!contractFile && !hasTemplate) return;
     setSubmitting(true);
     setError("");
 
     const supabase = createClient();
 
-    // Upload contract file
+    // Use template or uploaded file
     let contractUrl = null;
     let contractName = null;
     if (contractFile) {
@@ -135,6 +139,9 @@ export default function SendOfferPage() {
         contractUrl = result.url;
         contractName = contractFile.name;
       }
+    } else if (useTemplate && hasTemplate) {
+      contractUrl = company.contract_template_url;
+      contractName = company.contract_template_name;
     }
 
     // Insert offer
@@ -390,70 +397,105 @@ export default function SendOfferPage() {
           <label className="mb-2 block text-sm font-medium text-gray-700">
             Contract de Transport *
           </label>
-          <div
-            className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-              contractFile
-                ? "border-green-400 bg-green-50"
-                : "border-gray-300 bg-gray-50 hover:border-primary-400"
-            }`}
-          >
-            {contractFile ? (
-              <div className="flex flex-col items-center gap-3">
-                {isImage && filePreview ? (
-                  <img
-                    src={filePreview}
-                    alt="Preview contract"
-                    className="max-h-48 rounded-lg border border-gray-200 object-contain"
-                  />
-                ) : (
-                  <FileText className="h-8 w-8 text-green-500" />
-                )}
-                <div className="flex items-center gap-3">
-                  {isImage ? (
-                    <Image className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <FileText className="h-5 w-5 text-green-500" />
-                  )}
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">
-                      {contractFile.name}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {(contractFile.size / 1024).toFixed(0)} KB
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearFile}
-                    className="ml-4 text-sm text-red-500 hover:text-red-700"
-                  >
-                    Șterge
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <label className="cursor-pointer">
-                <div className="mx-auto flex items-center justify-center gap-2">
-                  <Upload className="h-10 w-10 text-gray-400" />
-                  <Camera className="h-8 w-8 text-gray-400" />
-                </div>
-                <p className="mt-2 text-sm font-medium text-gray-700">
-                  Încarcă contractul — PDF sau fotografie
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  PDF, JPG, PNG — max 10MB. Poți face o poză direct cu
-                  telefonul.
-                </p>
+
+          {/* Template option */}
+          {hasTemplate && (
+            <div className="mb-3 rounded-lg border border-green-200 bg-green-50 p-4">
+              <label className="flex items-center gap-3">
                 <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,image/*"
-                  capture="environment"
-                  onChange={handleFileChange}
-                  className="hidden"
+                  type="checkbox"
+                  checked={useTemplate && !contractFile}
+                  onChange={(e) => {
+                    setUseTemplate(e.target.checked);
+                    if (e.target.checked) clearFile();
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-primary-500"
                 />
+                <div>
+                  <p className="text-sm font-medium text-green-700">
+                    Folosește contractul template al companiei
+                  </p>
+                  <p className="text-xs text-green-600">{company.contract_template_name}</p>
+                </div>
               </label>
-            )}
-          </div>
+              <a
+                href={company.contract_template_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-xs font-medium text-green-700 underline"
+              >
+                Vizualizează template-ul
+              </a>
+            </div>
+          )}
+
+          {/* Custom upload - shown if no template or user wants to override */}
+          {(!hasTemplate || !useTemplate || contractFile) && (
+            <div
+              className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                contractFile
+                  ? "border-green-400 bg-green-50"
+                  : "border-gray-300 bg-gray-50 hover:border-primary-400"
+              }`}
+            >
+              {contractFile ? (
+                <div className="flex flex-col items-center gap-3">
+                  {isImage && filePreview ? (
+                    <img
+                      src={filePreview}
+                      alt="Preview contract"
+                      className="max-h-48 rounded-lg border border-gray-200 object-contain"
+                    />
+                  ) : (
+                    <FileText className="h-8 w-8 text-green-500" />
+                  )}
+                  <div className="flex items-center gap-3">
+                    {isImage ? (
+                      <Image className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-green-500" />
+                    )}
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">
+                        {contractFile.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {(contractFile.size / 1024).toFixed(0)} KB
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearFile}
+                      className="ml-4 text-sm text-red-500 hover:text-red-700"
+                    >
+                      Șterge
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="cursor-pointer">
+                  <div className="mx-auto flex items-center justify-center gap-2">
+                    <Upload className="h-10 w-10 text-gray-400" />
+                    <Camera className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="mt-2 text-sm font-medium text-gray-700">
+                    {hasTemplate ? "Încarcă un alt contract pentru această ofertă" : "Încarcă contractul — PDF sau fotografie"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    PDF, JPG, PNG — max 10MB. Poți face o poză direct cu
+                    telefonul.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,image/*"
+                    capture="environment"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          )}
           <p className="mt-2 text-xs text-gray-500">
             Contractul va fi vizibil clientului înainte de plată. Clientul
             trebuie să accepte contractul pentru a putea plăti.
@@ -464,7 +506,7 @@ export default function SendOfferPage() {
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            disabled={submitting || !contractFile || !vehicleId}
+            disabled={submitting || (!contractFile && !hasTemplate) || !vehicleId}
             className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-8 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-accent-600 disabled:opacity-50"
           >
             <Send className="h-5 w-5" />

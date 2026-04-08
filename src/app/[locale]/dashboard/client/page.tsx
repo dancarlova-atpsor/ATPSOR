@@ -15,6 +15,8 @@ import {
   MapPin,
   Users,
   Loader2,
+  FileSignature,
+  ExternalLink,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -247,27 +249,61 @@ export default function ClientDashboard() {
             {bookings.map((booking) => (
               <div
                 key={booking.id}
-                className="flex items-center justify-between rounded-xl bg-white p-5 shadow-md"
+                className="rounded-xl bg-white p-5 shadow-md"
               >
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    {booking.offer?.request?.pickup_city} →{" "}
-                    {booking.offer?.request?.dropoff_city}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-gray-900">
+                      {booking.offer?.request?.pickup_city} →{" "}
+                      {booking.offer?.request?.dropoff_city}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-500">
+                      {booking.company?.name} &middot;{" "}
+                      {booking.offer?.request?.departure_date}
+                    </div>
                   </div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    {booking.company?.name} &middot;{" "}
-                    {booking.offer?.request?.departure_date}
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-gray-900">
+                      {booking.total_price} RON
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600">
+                      <CheckCircle className="h-3 w-3" />
+                      Confirmată
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-gray-900">
-                    {booking.total_price} RON
+
+                {/* Contract section */}
+                {booking.offer?.contract_url && (
+                  <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <FileSignature className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        {booking.offer?.contract_name || "Contract"}
+                      </span>
+                      {booking.contract_accepted ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          <CheckCircle className="h-3 w-3" />
+                          Acceptat
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
+                          <Clock className="h-3 w-3" />
+                          În așteptare
+                        </span>
+                      )}
+                    </div>
+                    <a
+                      href={booking.offer.contract_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-primary-500 hover:text-primary-600"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Vezi contractul
+                    </a>
                   </div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600">
-                    <CheckCircle className="h-3 w-3" />
-                    Confirmată
-                  </span>
-                </div>
+                )}
               </div>
             ))}
           </div>

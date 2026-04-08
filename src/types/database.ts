@@ -58,6 +58,8 @@ export interface Company {
   total_reviews: number;
   stripe_account_id: string | null;
   smartbill_series: string | null;
+  contract_template_url: string | null;
+  contract_template_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -110,6 +112,8 @@ export interface Offer {
   includes_fuel: boolean;
   valid_until: string;
   status: OfferStatus;
+  contract_url: string | null;
+  contract_name: string | null;
   created_at: string;
   // Joined fields
   company?: Company;
@@ -126,6 +130,8 @@ export interface Booking {
   total_price: number;
   currency: string;
   notes: string | null;
+  contract_accepted: boolean;
+  contract_accepted_at: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
