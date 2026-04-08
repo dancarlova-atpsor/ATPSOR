@@ -53,6 +53,11 @@ export default function TransporterDashboard() {
   const [bookingsCount, setBookingsCount] = useState(0);
   const [revenue, setRevenue] = useState(0);
   const [togglingVehicle, setTogglingVehicle] = useState<string | null>(null);
+  const [vehicleBlocks, setVehicleBlocks] = useState<any[]>([]);
+  const [blockingVehicleId, setBlockingVehicleId] = useState<string | null>(null);
+  const [blockStart, setBlockStart] = useState("");
+  const [blockEnd, setBlockEnd] = useState("");
+  const [savingBlock, setSavingBlock] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -124,7 +129,21 @@ export default function TransporterDashboard() {
           .eq("company_id", comp.id),
       ]);
 
-      if (vehiclesRes.data) setVehicles(vehiclesRes.data);
+      if (vehiclesRes.data) {
+        setVehicles(vehiclesRes.data);
+        // Load blocks for all vehicles
+        const vehicleIds = vehiclesRes.data.map((v: any) => v.id);
+        if (vehicleIds.length > 0) {
+          const today = new Date().toISOString().split("T")[0];
+          const { data: blocksData } = await supabase
+            .from("vehicle_blocks")
+            .select("*")
+            .in("vehicle_id", vehicleIds)
+            .gte("end_date", today)
+            .order("start_date", { ascending: true });
+          if (blocksData) setVehicleBlocks(blocksData);
+        }
+      }
       if (requestsRes.data) setAvailableRequests(requestsRes.data);
       if (companyDocsRes.data) setCompanyDocs(companyDocsRes.data);
       if (vehicleDocsRes.data) setVehicleDocs(vehicleDocsRes.data);
@@ -149,19 +168,33 @@ export default function TransporterDashboard() {
     return vehicleDocs.filter((d) => d.vehicle_id === vehicleId);
   }
 
-  async function toggleVehicleActive(vehicleId: string, currentActive: boolean) {
-    setTogglingVehicle(vehicleId);
+  async function saveBlock() {
+    if (!blockingVehicleId || !blockStart || !blockEnd) return;
+    setSavingBlock(true);
     const supabase = createClient();
-    const { error } = await supabase
-      .from("vehicles")
-      .update({ is_active: !currentActive })
-      .eq("id", vehicleId);
-    if (!error) {
-      setVehicles((prev) =>
-        prev.map((v) => v.id === vehicleId ? { ...v, is_active: !currentActive } : v)
-      );
+    const { data, error } = await supabase
+      .from("vehicle_blocks")
+      .insert({
+        vehicle_id: blockingVehicleId,
+        start_date: blockStart,
+        end_date: blockEnd,
+        reason: "manual",
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      setVehicleBlocks((prev) => [...prev, data]);
     }
-    setTogglingVehicle(null);
+    setSavingBlock(false);
+    setBlockingVehicleId(null);
+    setBlockStart("");
+    setBlockEnd("");
+  }
+
+  async function removeBlock(blockId: string) {
+    const supabase = createClient();
+    await supabase.from("vehicle_blocks").delete().eq("id", blockId);
+    setVehicleBlocks((prev) => prev.filter((b) => b.id !== blockId));
   }
 
   function isVehicleDocsValid(vehicleId: string, seats: number) {
@@ -406,68 +439,128 @@ export default function TransporterDashboard() {
           ) : (
             vehicles.map((vehicle) => {
               const docsValid = isVehicleDocsValid(vehicle.id, vehicle.seats);
-              const isToggling = togglingVehicle === vehicle.id;
+              const vBlocks = vehicleBlocks.filter((b) => b.vehicle_id === vehicle.id);
+              const today = new Date().toISOString().split("T")[0];
+              const isCurrentlyBlocked = vBlocks.some(
+                (b) => b.start_date <= today && b.end_date >= today
+              );
+              const isAddingBlock = blockingVehicleId === vehicle.id;
+
               return (
-                <div
-                  key={vehicle.id}
-                  className={`flex items-center justify-between rounded-xl p-5 shadow-md transition ${
-                    vehicle.is_active ? "bg-white" : "bg-gray-50 opacity-75"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${vehicle.is_active ? "bg-primary-50" : "bg-gray-100"}`}>
-                      <Bus className={`h-6 w-6 ${vehicle.is_active ? "text-primary-500" : "text-gray-400"}`} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 font-semibold text-gray-900">
-                        {vehicle.name}
-                        {!vehicle.is_active && (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
-                            Blocat
+                <div key={vehicle.id} className="rounded-xl bg-white shadow-md">
+                  <div className="flex items-center justify-between p-5">
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${isCurrentlyBlocked ? "bg-red-50" : "bg-primary-50"}`}>
+                        <Bus className={`h-6 w-6 ${isCurrentlyBlocked ? "text-red-400" : "text-primary-500"}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 font-semibold text-gray-900">
+                          {vehicle.name}
+                          {isCurrentlyBlocked && (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                              Blocat azi
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
+                          <span>{vehicle.seats} locuri</span>
+                          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-600">
+                            {VEHICLE_CATEGORIES[vehicle.category as keyof typeof VEHICLE_CATEGORIES]?.label || vehicle.category}
                           </span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
-                        <span>{vehicle.seats} locuri</span>
-                        <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-600">
-                          {VEHICLE_CATEGORIES[
-                            vehicle.category as keyof typeof VEHICLE_CATEGORIES
-                          ]?.label || vehicle.category}
-                        </span>
+                          {docsValid ? (
+                            <span className="hidden items-center gap-1 text-xs text-green-600 sm:flex">
+                              <CheckCircle className="h-3.5 w-3.5" /> Documente ok
+                            </span>
+                          ) : (
+                            <span className="hidden items-center gap-1 text-xs text-red-500 sm:flex">
+                              <AlertTriangle className="h-3.5 w-3.5" /> Documente lipsă
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {docsValid ? (
-                      <span className="hidden items-center gap-1 text-xs text-green-600 sm:flex">
-                        <CheckCircle className="h-4 w-4" />
-                        Documente ok
-                      </span>
-                    ) : (
-                      <span className="hidden items-center gap-1 text-xs text-red-500 sm:flex">
-                        <AlertTriangle className="h-4 w-4" />
-                        Documente lipsă
-                      </span>
-                    )}
                     <button
-                      onClick={() => toggleVehicleActive(vehicle.id, vehicle.is_active)}
-                      disabled={isToggling}
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                        vehicle.is_active
-                          ? "bg-red-50 text-red-600 hover:bg-red-100"
-                          : "bg-green-50 text-green-600 hover:bg-green-100"
-                      } disabled:opacity-50`}
+                      onClick={() => setBlockingVehicleId(isAddingBlock ? null : vehicle.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
                     >
-                      {isToggling ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : vehicle.is_active ? (
-                        <><Lock className="h-4 w-4" /> Blochează</>
-                      ) : (
-                        <><Unlock className="h-4 w-4" /> Deblochează</>
-                      )}
+                      <Lock className="h-4 w-4" />
+                      Blochează perioadă
                     </button>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
                   </div>
+
+                  {/* Form adăugare blocare */}
+                  {isAddingBlock && (
+                    <div className="border-t border-gray-100 bg-red-50 px-5 py-4">
+                      <p className="mb-3 text-sm font-medium text-gray-700">
+                        Blochează vehiculul pentru o perioadă (rezervare externă):
+                      </p>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">De la *</label>
+                          <input
+                            type="date"
+                            value={blockStart}
+                            onChange={(e) => setBlockStart(e.target.value)}
+                            min={today}
+                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs text-gray-500">Până la *</label>
+                          <input
+                            type="date"
+                            value={blockEnd}
+                            onChange={(e) => setBlockEnd(e.target.value)}
+                            min={blockStart || today}
+                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                          />
+                        </div>
+                        <button
+                          onClick={saveBlock}
+                          disabled={!blockStart || !blockEnd || savingBlock}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {savingBlock ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                          Confirmă blocarea
+                        </button>
+                        <button
+                          onClick={() => { setBlockingVehicleId(null); setBlockStart(""); setBlockEnd(""); }}
+                          className="text-sm text-gray-400 hover:text-gray-600"
+                        >
+                          Anulează
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Blocări existente */}
+                  {vBlocks.length > 0 && (
+                    <div className="border-t border-gray-100 px-5 py-3">
+                      <p className="mb-2 text-xs font-medium text-gray-500">Perioade blocate:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {vBlocks.map((block) => (
+                          <div key={block.id} className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                            <span>
+                              {block.start_date === block.end_date
+                                ? block.start_date
+                                : `${block.start_date} → ${block.end_date}`}
+                            </span>
+                            {block.reason === "manual" && (
+                              <button
+                                onClick={() => removeBlock(block.id)}
+                                className="ml-1 text-gray-400 hover:text-red-500"
+                              >
+                                ×
+                              </button>
+                            )}
+                            {block.reason === "booking" && (
+                              <span className="text-primary-500">rezervat</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })
