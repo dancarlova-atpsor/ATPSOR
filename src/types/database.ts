@@ -26,7 +26,7 @@ export type BookingStatus =
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export type InvoiceType = "transport" | "commission" | "luxuria_commission";
-export type InvoiceStatus = "pending" | "issued" | "failed";
+export type InvoiceStatus = "pending" | "issued" | "failed" | "cancelled" | "reversed";
 
 export interface Profile {
   id: string;

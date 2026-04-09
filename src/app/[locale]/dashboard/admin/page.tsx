@@ -27,11 +27,12 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { VEHICLE_CATEGORIES } from "@/types/database";
+import InvoiceList from "@/components/invoices/InvoiceList";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    "overview" | "users" | "companies" | "requests" | "offers" | "documents"
+    "overview" | "users" | "companies" | "requests" | "offers" | "documents" | "invoices"
   >("overview");
   const [loading, setLoading] = useState(true);
   const [adminId, setAdminId] = useState<string>("");
@@ -257,6 +258,7 @@ export default function AdminDashboard() {
     { key: "requests" as const, label: "Cereri", icon: FileText },
     { key: "offers" as const, label: "Oferte & Rezervări", icon: MessageSquare },
     { key: "documents" as const, label: "Documente", icon: Shield },
+    { key: "invoices" as const, label: "Facturi", icon: CreditCard },
   ];
 
   const totalRevenue = bookings.reduce(
@@ -1129,6 +1131,10 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === "invoices" && (
+        <InvoiceList role="admin" />
       )}
     </div>
   );

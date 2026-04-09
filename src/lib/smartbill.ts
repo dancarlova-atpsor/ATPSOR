@@ -215,6 +215,207 @@ export async function generateCommissionInvoice(params: {
   });
 }
 
+// ==========================================
+// PDF Download, Email, Cancel, Storno
+// ==========================================
+
+// Download invoice PDF
+export async function getInvoicePdf(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  authHeader?: string;
+}): Promise<Buffer | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  try {
+    const url = `${SMARTBILL_API_URL}/invoice/pdf?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: auth,
+        Accept: "application/octet-stream",
+      },
+    });
+
+    if (!res.ok) {
+      console.error("SmartBill PDF download failed:", res.status, await res.text());
+      return null;
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error("SmartBill PDF download error:", error);
+    return null;
+  }
+}
+
+// Send invoice by email via SmartBill
+export async function sendInvoiceEmail(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  to: string;
+  subject?: string;
+  bodyText?: string;
+  authHeader?: string;
+}): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  const subject = params.subject || `Factura ${params.seriesName} ${params.number}`;
+  const body = params.bodyText || `Bună ziua,\n\nVă transmitem atașat factura ${params.seriesName} ${params.number}.\n\nCu stimă,\nATPSOR`;
+
+  try {
+    const res = await fetch(`${SMARTBILL_API_URL}/document/send`, {
+      method: "POST",
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        companyVatCode: params.cif,
+        seriesName: params.seriesName,
+        number: params.number,
+        type: "factura",
+        to: params.to,
+        subject: Buffer.from(subject).toString("base64"),
+        bodyText: Buffer.from(body).toString("base64"),
+      }),
+    });
+
+    const data = await res.json();
+    return data as SmartBillResponse;
+  } catch (error) {
+    console.error("SmartBill send email error:", error);
+    return null;
+  }
+}
+
+// Cancel (anulare) invoice
+export async function cancelInvoice(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  authHeader?: string;
+}): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  try {
+    const url = `${SMARTBILL_API_URL}/invoice/cancel?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: auth,
+        Accept: "application/json",
+      },
+    });
+
+    const data = await res.json();
+    return data as SmartBillResponse;
+  } catch (error) {
+    console.error("SmartBill cancel invoice error:", error);
+    return null;
+  }
+}
+
+// Reverse (storno) invoice
+export async function reverseInvoice(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  issueDate?: string; // YYYY-MM-DD, defaults to today
+  authHeader?: string;
+}): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  const issueDate = params.issueDate || new Date().toISOString().split("T")[0];
+
+  try {
+    const res = await fetch(`${SMARTBILL_API_URL}/invoice/reverse`, {
+      method: "POST",
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        companyVatCode: params.cif,
+        seriesName: params.seriesName,
+        number: params.number,
+        issueDate,
+      }),
+    });
+
+    const data = await res.json();
+    return data as SmartBillResponse;
+  } catch (error) {
+    console.error("SmartBill reverse invoice error:", error);
+    return null;
+  }
+}
+
+// Get invoice payment status
+export async function getInvoicePaymentStatus(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  authHeader?: string;
+}): Promise<{ total?: number; paid?: number; remaining?: number } | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  try {
+    const url = `${SMARTBILL_API_URL}/invoice/paymentstatus?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: auth,
+        Accept: "application/json",
+      },
+    });
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("SmartBill payment status error:", error);
+    return null;
+  }
+}
+
+// Delete invoice (only last in series)
+export async function deleteInvoice(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  authHeader?: string;
+}): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  try {
+    const url = `${SMARTBILL_API_URL}/invoice?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: auth,
+        Accept: "application/json",
+      },
+    });
+
+    const data = await res.json();
+    return data as SmartBillResponse;
+  } catch (error) {
+    console.error("SmartBill delete invoice error:", error);
+    return null;
+  }
+}
+
 // Generate Luxuria commission invoice (Luxuria Trans Travel → ATPSOR) - 50% din comision
 export async function generateLuxuriaCommissionInvoice(params: {
   commissionAmount: number; // 50% din comisionul ATPSOR (= 2.5% din total)

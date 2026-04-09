@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import InvoiceList from "@/components/invoices/InvoiceList";
 
 const statusConfig = {
   pending: {
@@ -308,6 +309,14 @@ export default function ClientDashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* My Invoices */}
+      <div className="mt-8">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          Facturile Mele
+        </h2>
+        <InvoiceList role="client" />
       </div>
     </div>
   );

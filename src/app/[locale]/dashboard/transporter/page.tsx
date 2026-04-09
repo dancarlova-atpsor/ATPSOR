@@ -34,6 +34,7 @@ import { uploadFile } from "@/lib/supabase/storage";
 import BookingLinkForm from "@/components/transporter/BookingLinkForm";
 import { DocumentUpload } from "@/components/transporter/DocumentUpload";
 import VehicleCalendar from "@/components/transporter/VehicleCalendar";
+import InvoiceList from "@/components/invoices/InvoiceList";
 
 const VEHICLE_DOC_TYPES = [
   { type: "vehicle_registration_itp", label: "Talon cu ITP valabil" },
@@ -48,7 +49,7 @@ const VEHICLE_DOC_TYPES = [
 export default function TransporterDashboard() {
   const t = useTranslations();
   const router = useRouter();
-  const validTabs = ["requests", "offers", "vehicles", "documents", "pricing", "profile"] as const;
+  const validTabs = ["requests", "offers", "vehicles", "invoices", "documents", "pricing", "profile"] as const;
   type TabType = typeof validTabs[number];
   const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
   const initialTab = validTabs.includes(hashTab as TabType) ? (hashTab as TabType) : "requests";
@@ -750,6 +751,11 @@ export default function TransporterDashboard() {
       icon: MessageSquare,
     },
     {
+      key: "invoices" as const,
+      label: "Facturi",
+      icon: FileSignature,
+    },
+    {
       key: "profile" as const,
       label: "Profil Companie",
       icon: Building2,
@@ -1398,6 +1404,10 @@ export default function TransporterDashboard() {
             ))
           )}
         </div>
+      )}
+
+      {activeTab === "invoices" && (
+        <InvoiceList role="transporter" />
       )}
 
       {activeTab === "profile" && (
