@@ -20,3 +20,12 @@ export function formatDate(date: string | Date, locale = "ro-RO") {
     year: "numeric",
   }).format(new Date(date));
 }
+
+export function generateSlug(title: string): string {
+  return title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}

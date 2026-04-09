@@ -74,6 +74,7 @@ export function Header() {
     { name: t("nav.home"), href: "/" as const },
     { name: "Caut Transport", href: "/request" as const },
     { name: t("nav.transporters"), href: "/transporters" as const },
+    { name: "Activitati", href: "/activitati" as const },
     { name: t("nav.about"), href: "/about" as const },
   ];
 

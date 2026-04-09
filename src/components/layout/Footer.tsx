@@ -54,6 +54,16 @@ export function Footer() {
                   {t("nav.about")}
                 </Link>
               </li>
+              <li>
+                <Link href="/activitati" className="hover:text-white transition-colors">
+                  Activitati
+                </Link>
+              </li>
+              <li>
+                <Link href="/manual" className="hover:text-white transition-colors">
+                  Manuale
+                </Link>
+              </li>
             </ul>
           </div>
 

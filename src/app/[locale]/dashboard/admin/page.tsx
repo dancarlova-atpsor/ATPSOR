@@ -24,15 +24,17 @@ import {
   Trash2,
   CalendarCheck,
   DollarSign,
+  Newspaper,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { VEHICLE_CATEGORIES } from "@/types/database";
 import InvoiceList from "@/components/invoices/InvoiceList";
+import ArticlesManager from "@/components/admin/ArticlesManager";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    "overview" | "users" | "companies" | "requests" | "offers" | "documents" | "invoices"
+    "overview" | "users" | "companies" | "requests" | "offers" | "documents" | "invoices" | "articles"
   >("overview");
   const [loading, setLoading] = useState(true);
   const [adminId, setAdminId] = useState<string>("");
@@ -324,6 +326,7 @@ export default function AdminDashboard() {
     { key: "offers" as const, label: "Oferte & Rezervări", icon: MessageSquare },
     { key: "documents" as const, label: "Documente", icon: Shield },
     { key: "invoices" as const, label: "Facturi", icon: CreditCard },
+    { key: "articles" as const, label: "Activitati", icon: Newspaper },
   ];
 
   const totalRevenue = bookings.reduce(
@@ -1207,6 +1210,10 @@ export default function AdminDashboard() {
 
       {activeTab === "invoices" && (
         <InvoiceList role="admin" />
+      )}
+
+      {activeTab === "articles" && (
+        <ArticlesManager />
       )}
     </div>
   );
