@@ -768,13 +768,22 @@ export default function TransporterDashboard() {
         <h1 className="text-2xl font-bold text-gray-900">
           {t("dashboard.transporter.title")}
         </h1>
-        <Link
-          href="/dashboard/transporter/add-vehicle"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
-        >
-          <Plus className="h-4 w-4" />
-          {t("dashboard.transporter.addVehicle")}
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/manual/transportator"
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          >
+            <FileText className="h-4 w-4" />
+            Manual
+          </Link>
+          <Link
+            href="/dashboard/transporter/add-vehicle"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
+          >
+            <Plus className="h-4 w-4" />
+            {t("dashboard.transporter.addVehicle")}
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

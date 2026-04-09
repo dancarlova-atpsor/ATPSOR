@@ -76,6 +76,7 @@ export function Header() {
     { name: t("nav.transporters"), href: "/transporters" as const },
     { name: "Activitati", href: "/activitati" as const },
     { name: t("nav.about"), href: "/about" as const },
+    { name: "Ghid Client", href: "/manual/client" as const },
   ];
 
   function switchLocale(locale: "ro" | "en") {

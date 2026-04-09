@@ -167,6 +167,8 @@ export default function AdminDashboard() {
 
   async function approveCompany(companyId: string) {
     const supabase = createClient();
+
+    // Aproba compania
     await supabase
       .from("companies")
       .update({
@@ -175,6 +177,20 @@ export default function AdminDashboard() {
         rejection_reason: null,
       })
       .eq("id", companyId);
+
+    // Trimite email cu manualul transportatorului
+    const company = companies.find((c: any) => c.id === companyId);
+    if (company?.email) {
+      fetch("/api/notify-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: company.email,
+          companyName: company.name,
+        }),
+      }).catch(() => {});
+    }
+
     loadData();
   }
 
@@ -348,13 +364,22 @@ export default function AdminDashboard() {
             Gestionează platforma ATPSOR
           </p>
         </div>
-        <a
-          href="/ro/dashboard/transporter"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
-        >
-          <Bus className="h-4 w-4" />
-          Panoul Meu de Transportator
-        </a>
+        <div className="flex gap-2">
+          <a
+            href="/ro/manual/admin"
+            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-purple-700"
+          >
+            <Shield className="h-4 w-4" />
+            Manual Admin
+          </a>
+          <a
+            href="/ro/dashboard/transporter"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
+          >
+            <Bus className="h-4 w-4" />
+            Panoul Meu de Transportator
+          </a>
+        </div>
       </div>
 
       {/* Stats — clickable */}
