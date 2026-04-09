@@ -37,7 +37,7 @@ export default function ContractComisionPage() {
             <h2 className="text-base font-bold text-gray-900">I. PĂRȚILE CONTRACTANTE</h2>
             <p className="mt-2">
               <strong>1.1. ASOCIAȚIA TRANSPORTATORILOR DE PERSOANE PRIN SERVICIU OCAZIONAL (A.T.P.S.O.R.)</strong>,
-              cu sediul în Com. Clinceni, Sat Clinceni, Str. Săbarului, Nr. 120, Jud. Ilfov,
+              cu sediul în Com. Clinceni, Sat Clinceni, Str. Sabarului, Nr. 120, Jud. Ilfov,
               CIF 52819099, cont IBAN RO58CECEB00030RON3979534, deschis la CEC Bank SA,
               reprezentată legal prin <strong>Laudat Daniel</strong>, în calitate de Președinte,
               denumită în continuare <strong>&ldquo;Platforma&rdquo;</strong> sau <strong>&ldquo;ATPSOR&rdquo;</strong>,

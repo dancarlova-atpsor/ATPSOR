@@ -40,7 +40,7 @@ export default function DocumentsPage() {
         <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div><span className="text-gray-500">Denumire:</span> <strong>Asociația Transportatorilor de Persoane prin Serviciu Ocazional</strong></div>
           <div><span className="text-gray-500">CIF:</span> <strong>52819099</strong></div>
-          <div><span className="text-gray-500">Sediu:</span> Com. Clinceni, Str. Săbarului, Nr. 120, Jud. Ilfov</div>
+          <div><span className="text-gray-500">Sediu:</span> Com. Clinceni, Str. Sabarului, Nr. 120, Jud. Ilfov</div>
           <div><span className="text-gray-500">Președinte:</span> <strong>Laudat Daniel</strong></div>
           <div><span className="text-gray-500">Bancă:</span> CEC Bank SA, Suc. Drumul Taberei</div>
           <div><span className="text-gray-500">IBAN:</span> <strong>RO58CECEB00030RON3979534</strong></div>

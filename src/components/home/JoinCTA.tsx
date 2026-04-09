@@ -41,7 +41,7 @@ export function JoinCTA() {
             <div className="mt-4 space-y-3 text-primary-100">
               <p>Telefon: +40 745 635 657</p>
               <p>Email: contact@atpsor.ro</p>
-              <p>Sediu: Com. Clinceni, Str. Săbarului 120, Ilfov</p>
+              <p>Sediu: Com. Clinceni, Str. Sabarului 120, Ilfov</p>
             </div>
             <hr className="my-4 border-white/20" />
             <p className="text-sm text-primary-200">

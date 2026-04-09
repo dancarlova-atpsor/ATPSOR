@@ -97,7 +97,7 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary-400" />
-                <span>Com. Clinceni, Str. Săbarului 120, Ilfov</span>
+                <span>Com. Clinceni, Str. Sabarului 120, Ilfov</span>
               </li>
               <li className="text-xs text-gray-500 mt-2">
                 CIF: 52819099
