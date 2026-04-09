@@ -220,10 +220,75 @@ export default function AdminDashboard() {
     newStatus: string
   ) {
     const supabase = createClient();
+
+    // Dacă anulăm cererea, deblocăm vehiculele asociate
+    if (newStatus === "cancelled") {
+      // Găsim booking-urile asociate acestei cereri (prin offers)
+      const { data: reqOffers } = await supabase
+        .from("offers")
+        .select("id, vehicle_id")
+        .eq("request_id", requestId);
+
+      if (reqOffers) {
+        for (const offer of reqOffers) {
+          // Deblocăm vehiculul
+          if (offer.vehicle_id) {
+            await supabase
+              .from("vehicle_blocks")
+              .delete()
+              .eq("vehicle_id", offer.vehicle_id)
+              .eq("reason", "booking");
+          }
+        }
+      }
+
+      // De asemenea, verificăm bookings cu notes care conțin requestId
+      const { data: reqBookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .like("notes", `%${requestId}%`);
+
+      if (reqBookings) {
+        for (const booking of reqBookings) {
+          await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+        }
+      }
+    }
+
     await supabase
       .from("transport_requests")
       .update({ status: newStatus })
       .eq("id", requestId);
+    loadData();
+  }
+
+  async function deleteRequest(requestId: string) {
+    if (!confirm("Sigur vrei să ștergi această cerere? Acțiunea este ireversibilă.")) return;
+    const supabase = createClient();
+
+    // Ștergem ofertele asociate mai întâi
+    const { data: reqOffers } = await supabase
+      .from("offers")
+      .select("id, vehicle_id")
+      .eq("request_id", requestId);
+
+    if (reqOffers) {
+      for (const offer of reqOffers) {
+        // Deblocăm vehiculul dacă era blocat
+        if (offer.vehicle_id) {
+          await supabase
+            .from("vehicle_blocks")
+            .delete()
+            .eq("vehicle_id", offer.vehicle_id)
+            .eq("reason", "booking");
+        }
+      }
+      // Ștergem ofertele
+      await supabase.from("offers").delete().eq("request_id", requestId);
+    }
+
+    // Ștergem cererea
+    await supabase.from("transport_requests").delete().eq("id", requestId);
     loadData();
   }
 
@@ -289,9 +354,9 @@ export default function AdminDashboard() {
         </a>
       </div>
 
-      {/* Stats */}
+      {/* Stats — clickable */}
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-xl bg-white p-4 shadow-md">
+        <button onClick={() => setActiveTab("users")} className="rounded-xl bg-white p-4 shadow-md text-left transition-all hover:shadow-lg hover:ring-2 hover:ring-purple-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100">
               <Users className="h-4 w-4 text-purple-600" />
@@ -301,8 +366,8 @@ export default function AdminDashboard() {
               <div className="text-xs text-gray-500">Utilizatori</div>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl bg-white p-4 shadow-md">
+        </button>
+        <button onClick={() => setActiveTab("companies")} className="rounded-xl bg-white p-4 shadow-md text-left transition-all hover:shadow-lg hover:ring-2 hover:ring-blue-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
               <Building2 className="h-4 w-4 text-blue-600" />
@@ -312,8 +377,8 @@ export default function AdminDashboard() {
               <div className="text-xs text-gray-500">Companii</div>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl bg-white p-4 shadow-md">
+        </button>
+        <button onClick={() => setActiveTab("requests")} className="rounded-xl bg-white p-4 shadow-md text-left transition-all hover:shadow-lg hover:ring-2 hover:ring-green-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100">
               <FileText className="h-4 w-4 text-green-600" />
@@ -323,8 +388,8 @@ export default function AdminDashboard() {
               <div className="text-xs text-gray-500">Cereri</div>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl bg-white p-4 shadow-md">
+        </button>
+        <button onClick={() => setActiveTab("offers")} className="rounded-xl bg-white p-4 shadow-md text-left transition-all hover:shadow-lg hover:ring-2 hover:ring-orange-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100">
               <MessageSquare className="h-4 w-4 text-orange-600" />
@@ -334,21 +399,19 @@ export default function AdminDashboard() {
               <div className="text-xs text-gray-500">Oferte</div>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl bg-white p-4 shadow-md">
+        </button>
+        <button onClick={() => setActiveTab("offers")} className="rounded-xl bg-white p-4 shadow-md text-left transition-all hover:shadow-lg hover:ring-2 hover:ring-yellow-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100">
               <DollarSign className="h-4 w-4 text-yellow-600" />
             </div>
             <div>
-              <div className="text-xl font-bold">
-                {totalRevenue.toLocaleString("ro-RO")}
-              </div>
+              <div className="text-xl font-bold">{totalRevenue.toLocaleString("ro-RO")}</div>
               <div className="text-xs text-gray-500">RON venituri</div>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl bg-white p-4 shadow-md">
+        </button>
+        <button onClick={() => setActiveTab("documents")} className="rounded-xl bg-white p-4 shadow-md text-left transition-all hover:shadow-lg hover:ring-2 hover:ring-red-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
               <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -358,7 +421,7 @@ export default function AdminDashboard() {
               <div className="text-xs text-gray-500">De verificat</div>
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Tabs */}
@@ -771,19 +834,28 @@ export default function AdminDashboard() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <select
-                      value={r.status}
-                      onChange={(e) =>
-                        updateRequestStatus(r.id, e.target.value)
-                      }
-                      className="rounded border border-gray-300 px-2 py-1 text-xs"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="active">Active</option>
-                      <option value="fulfilled">Fulfilled</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="expired">Expired</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={r.status}
+                        onChange={(e) =>
+                          updateRequestStatus(r.id, e.target.value)
+                        }
+                        className="rounded border border-gray-300 px-2 py-1 text-xs"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="active">Active</option>
+                        <option value="fulfilled">Fulfilled</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="expired">Expired</option>
+                      </select>
+                      <button
+                        onClick={() => deleteRequest(r.id)}
+                        className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        title="Șterge cererea"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

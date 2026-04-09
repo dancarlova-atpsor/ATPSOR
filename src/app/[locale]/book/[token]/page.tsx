@@ -53,6 +53,9 @@ export default function BookPage() {
   const [bookingLink, setBookingLink] = useState<BookingLinkData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "bank">("card");
+  const [bankTransferDone, setBankTransferDone] = useState(false);
+  const [bankReference, setBankReference] = useState("");
 
   // Billing form
   const [billingName, setBillingName] = useState("");
@@ -106,9 +109,50 @@ export default function BookPage() {
     if (!bookingLink) return;
 
     setPaying(true);
+    const route = `${bookingLink.pickup_city} → ${bookingLink.dropoff_city}`;
+    const billingData = {
+      name: billingName,
+      email: billingEmail,
+      address: billingAddress,
+      city: billingCity,
+      county: billingCounty,
+    };
 
+    // Transfer bancar
+    if (paymentMethod === "bank") {
+      try {
+        const res = await fetch("/api/booking/bank-transfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vehicleId: bookingLink.vehicle_id,
+            companyId: bookingLink.company_id,
+            departureDate: bookingLink.departure_date,
+            returnDate: bookingLink.return_date,
+            totalPrice: bookingLink.total_price,
+            currency: "ron",
+            billingData,
+            route,
+            transporterName: bookingLink.companies?.name || "",
+            transporterEmail: bookingLink.companies?.email || "",
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setBankReference(data.reference);
+          setBankTransferDone(true);
+        } else {
+          setError(data.error || "Eroare la crearea rezervării");
+        }
+      } catch {
+        setError("Eroare de conexiune");
+      }
+      setPaying(false);
+      return;
+    }
+
+    // Plata cu cardul (Stripe)
     try {
-      // Platform fee: 5% of total
       const platformFee = Math.round(bookingLink.total_price * 0.05 * 100) / 100;
       const subtotalWithVat = bookingLink.total_price - platformFee;
 
@@ -119,14 +163,8 @@ export default function BookPage() {
           subtotalWithVat,
           platformFee,
           currency: "ron",
-          description: `Transport: ${bookingLink.pickup_city} → ${bookingLink.dropoff_city} | ${bookingLink.departure_date}`,
-          billingData: {
-            name: billingName,
-            email: billingEmail,
-            address: billingAddress,
-            city: billingCity,
-            county: billingCounty,
-          },
+          description: `Transport: ${route} | ${bookingLink.departure_date}`,
+          billingData,
           vehicleId: bookingLink.vehicle_id,
           companyId: bookingLink.company_id,
           departureDate: bookingLink.departure_date,
@@ -136,7 +174,7 @@ export default function BookPage() {
           transporterCui: bookingLink.companies?.cui || "",
           transporterEmail: bookingLink.companies?.email || "",
           transporterSeries: bookingLink.companies?.smartbill_series || "",
-          route: `${bookingLink.pickup_city} → ${bookingLink.dropoff_city}`,
+          route,
         }),
       });
 
@@ -185,6 +223,56 @@ export default function BookPage() {
             Acest link de rezervare nu este valid sau a expirat.
             Contactează transportatorul pentru un link nou.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Bank transfer success page
+  if (bankTransferDone) {
+    return (
+      <div className="min-h-[70vh] bg-gray-50 py-8 px-4">
+        <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
+            <Building2 className="h-10 w-10 text-blue-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Rezervare Înregistrată!</h1>
+          <p className="mt-3 text-gray-600">
+            Am trimis detaliile pentru transfer bancar pe emailul tău.
+          </p>
+
+          <div className="mt-6 rounded-xl bg-white p-6 shadow-md text-left">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalii Transfer Bancar</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-gray-500">Beneficiar:</span>
+                <span className="font-medium">ATPSOR</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-gray-500">IBAN:</span>
+                <span className="font-mono font-medium">RO49 AAAA 1B31 0075 9384 0000</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-gray-500">Banca:</span>
+                <span className="font-medium">Banca Transilvania</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-gray-500">Suma:</span>
+                <span className="font-bold text-red-600">{bookingLink.total_price.toLocaleString("ro-RO")} RON</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Referință plată:</span>
+                <span className="font-mono font-bold text-primary-600">{bankReference}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-left">
+            <p className="text-sm text-yellow-800">
+              <strong>Important:</strong> Menționează referința <strong>{bankReference}</strong> în
+              descrierea plății. Rezervarea se confirmă automat la primirea banilor (1-2 zile lucrătoare).
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -397,27 +485,75 @@ export default function BookPage() {
             </div>
           </div>
 
+          {/* Payment Method Selection */}
+          <div className="mb-6 rounded-xl bg-white shadow-md border border-gray-100 overflow-hidden">
+            <div className="bg-gray-800 px-6 py-4">
+              <h2 className="text-lg font-semibold text-white">Metodă de Plată</h2>
+            </div>
+            <div className="p-6 space-y-3">
+              <label className={`flex items-center gap-3 rounded-lg border-2 p-4 cursor-pointer transition-colors ${paymentMethod === "card" ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={paymentMethod === "card"}
+                  onChange={() => setPaymentMethod("card")}
+                  className="h-4 w-4 text-green-600"
+                />
+                <CreditCard className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="font-medium text-gray-900">Card bancar (Visa, Mastercard)</p>
+                  <p className="text-xs text-gray-500">Plată instantă, procesată securizat prin Stripe</p>
+                </div>
+              </label>
+              <label className={`flex items-center gap-3 rounded-lg border-2 p-4 cursor-pointer transition-colors ${paymentMethod === "bank" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={paymentMethod === "bank"}
+                  onChange={() => setPaymentMethod("bank")}
+                  className="h-4 w-4 text-blue-600"
+                />
+                <Building2 className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="font-medium text-gray-900">Transfer bancar</p>
+                  <p className="text-xs text-gray-500">Plată prin OP/transfer, confirmare în 1-2 zile lucrătoare</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* Pay Button */}
           <button
             type="submit"
             disabled={paying}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-4 text-lg font-semibold text-white shadow-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+            className={`w-full flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-lg font-semibold text-white shadow-md disabled:opacity-50 transition-colors ${
+              paymentMethod === "card"
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             {paying ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Se procesează...
               </>
-            ) : (
+            ) : paymentMethod === "card" ? (
               <>
                 <CreditCard className="w-5 h-5" />
-                Plătește {bookingLink.total_price.toLocaleString("ro-RO")} RON
+                Plătește cu cardul {bookingLink.total_price.toLocaleString("ro-RO")} RON
+              </>
+            ) : (
+              <>
+                <Building2 className="w-5 h-5" />
+                Rezervă cu transfer bancar
               </>
             )}
           </button>
 
           <p className="mt-3 text-center text-xs text-gray-500">
-            Plata se procesează securizat prin Stripe. Nu stocăm datele cardului.
+            {paymentMethod === "card"
+              ? "Plata se procesează securizat prin Stripe. Nu stocăm datele cardului."
+              : "Vei primi detaliile contului bancar pe email. Rezervarea se confirmă la primirea plății."}
           </p>
         </form>
       </div>

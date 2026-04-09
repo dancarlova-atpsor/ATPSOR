@@ -24,6 +24,7 @@ import {
   Info,
   Loader2,
   Inbox,
+  Building2,
 } from "lucide-react";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { TransportRequest, Offer, Company, Vehicle } from "@/types/database";
@@ -75,6 +76,8 @@ export default function RequestOffersPage() {
   const [viewingContract, setViewingContract] = useState<string | null>(null);
   const [viewingCalculation, setViewingCalculation] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<Record<string, "card" | "bank">>({});
+  const [bankTransferSuccess, setBankTransferSuccess] = useState<{ reference: string; offerId: string } | null>(null);
 
   // Billing data state
   const [billingFirstName, setBillingFirstName] = useState("");
@@ -143,7 +146,54 @@ export default function RequestOffersPage() {
     const pricePerKm = Number(offer.price);
     const { basePriceNoVat, tva, basePriceWithVat, platformFee } = calculateOfferPrice(pricePerKm, totalBillableKm);
     const route = `${request.pickup_city} → ${request.dropoff_city}`;
+    const billingData = {
+      name: `${billingFirstName} ${billingLastName}`.trim(),
+      firstName: billingFirstName,
+      lastName: billingLastName,
+      street: billingStreet,
+      number: billingNumber,
+      city: billingCity,
+      county: billingCounty,
+      email: billingEmail,
+      address: `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}`,
+    };
+    const method = paymentMethod[offerId] || "card";
 
+    // Transfer bancar
+    if (method === "bank") {
+      try {
+        const res = await fetch("/api/booking/bank-transfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            offerId,
+            vehicleId: offer.vehicle_id,
+            companyId: offer.company_id,
+            requestId: request.id,
+            departureDate: request.departure_date,
+            returnDate: request.return_date || null,
+            totalPrice,
+            currency: "ron",
+            billingData,
+            route,
+            transporterName: offer.company.name,
+            transporterEmail: offer.company.email || "",
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setBankTransferSuccess({ reference: data.reference, offerId });
+        } else {
+          setError(data.error || "Eroare la crearea rezervării");
+        }
+      } catch {
+        setError("Eroare de conexiune");
+      }
+      setProcessingPayment(null);
+      return;
+    }
+
+    // Plata cu cardul (Stripe)
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -160,7 +210,6 @@ export default function RequestOffersPage() {
           departureDate: request.departure_date,
           returnDate: request.return_date || null,
           transporterStripeAccountId: offer.company.stripe_account_id || null,
-          // Invoice metadata
           transporterName: offer.company.name,
           transporterCui: offer.company.cui || "",
           transporterEmail: offer.company.email || "",
@@ -168,17 +217,7 @@ export default function RequestOffersPage() {
           route,
           totalKm: totalBillableKm,
           pricePerKm,
-          billingData: {
-            name: `${billingFirstName} ${billingLastName}`.trim(),
-            firstName: billingFirstName,
-            lastName: billingLastName,
-            street: billingStreet,
-            number: billingNumber,
-            city: billingCity,
-            county: billingCounty,
-            email: billingEmail,
-            address: `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}`,
-          },
+          billingData,
         }),
       });
       const data = await res.json();
@@ -557,8 +596,39 @@ export default function RequestOffersPage() {
                     </div>
                   </div>
 
-                  {/* Accept & Pay */}
+                  {/* Bank transfer success */}
+                  {bankTransferSuccess?.offerId === offer.id && (
+                    <div className="border-t border-gray-100 bg-blue-50 px-6 py-4">
+                      <div className="rounded-lg bg-white p-4 border border-blue-200">
+                        <h4 className="font-semibold text-blue-800 mb-2">Rezervare Inregistrata!</h4>
+                        <p className="text-sm text-gray-600 mb-3">Detaliile pentru transfer bancar au fost trimise pe email.</p>
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between"><span className="text-gray-500">IBAN:</span><span className="font-mono font-medium">RO49 AAAA 1B31 0075 9384 0000</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Banca:</span><span className="font-medium">Banca Transilvania</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Suma:</span><span className="font-bold text-red-600">{Math.round(totalPrice).toLocaleString()} RON</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Referinta:</span><span className="font-mono font-bold text-primary-600">{bankTransferSuccess.reference}</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Method + Accept & Pay */}
+                  {!bankTransferSuccess?.offerId && (
                   <div className="border-t border-gray-100 px-6 py-4">
+                    {/* Payment method selector */}
+                    <div className="mb-4 flex gap-3">
+                      <label className={`flex flex-1 items-center gap-2 rounded-lg border-2 p-3 cursor-pointer text-sm ${(paymentMethod[offer.id] || "card") === "card" ? "border-green-500 bg-green-50" : "border-gray-200"}`}>
+                        <input type="radio" checked={(paymentMethod[offer.id] || "card") === "card"} onChange={() => setPaymentMethod((p) => ({ ...p, [offer.id]: "card" }))} className="h-3.5 w-3.5 text-green-600" />
+                        <CreditCard className="h-4 w-4 text-gray-500" />
+                        <span>Card bancar</span>
+                      </label>
+                      <label className={`flex flex-1 items-center gap-2 rounded-lg border-2 p-3 cursor-pointer text-sm ${paymentMethod[offer.id] === "bank" ? "border-blue-500 bg-blue-50" : "border-gray-200"}`}>
+                        <input type="radio" checked={paymentMethod[offer.id] === "bank"} onChange={() => setPaymentMethod((p) => ({ ...p, [offer.id]: "bank" }))} className="h-3.5 w-3.5 text-blue-600" />
+                        <Building2 className="h-4 w-4 text-gray-500" />
+                        <span>Transfer bancar</span>
+                      </label>
+                    </div>
+
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <label className="flex cursor-pointer items-start gap-3">
                         <input
@@ -576,14 +646,16 @@ export default function RequestOffersPage() {
                         disabled={!isContractAccepted || isProcessing || !billingFirstName || !billingLastName || !billingStreet || !billingNumber || !billingCity || !billingCounty}
                         className={`inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold shadow-lg transition-all ${
                           isContractAccepted && billingFirstName && billingLastName && billingStreet && billingNumber && billingCity && billingCounty
-                            ? "bg-green-600 text-white hover:bg-green-700"
+                            ? (paymentMethod[offer.id] === "bank" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-green-600 text-white hover:bg-green-700")
                             : "cursor-not-allowed bg-gray-200 text-gray-400"
                         }`}
                       >
-                        <CreditCard className="h-4 w-4" />
+                        {paymentMethod[offer.id] === "bank" ? <Building2 className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
                         {isProcessing
                           ? "Se proceseaza..."
-                          : `Plateste ${Math.round(totalPrice).toLocaleString()} RON`}
+                          : paymentMethod[offer.id] === "bank"
+                            ? `Rezerva cu transfer bancar`
+                            : `Plateste ${Math.round(totalPrice).toLocaleString()} RON`}
                       </button>
                     </div>
                     {!isContractAccepted && (
@@ -592,6 +664,7 @@ export default function RequestOffersPage() {
                       </p>
                     )}
                   </div>
+                  )}
                 </div>
               );
             })}

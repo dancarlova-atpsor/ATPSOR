@@ -21,7 +21,8 @@ export type BookingStatus =
   | "confirmed"
   | "in_progress"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "pending_payment";
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
