@@ -19,6 +19,7 @@ import {
   Mail,
   User,
   Search,
+  Building2,
 } from "lucide-react";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { VehicleCategory } from "@/types/database";
@@ -91,6 +92,8 @@ export function RequestTransportForm() {
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [paying, setPaying] = useState(false);
+  const [payMethod, setPayMethod] = useState<"card" | "bank">("card");
+  const [bankDone, setBankDone] = useState<{ reference: string } | null>(null);
 
   // Auto-fill contact from profile
   useEffect(() => {
@@ -306,6 +309,55 @@ export function RequestTransportForm() {
       // Continue to payment even if save fails
     }
 
+    const route = `${pickupCity} → ${dropoffCity}`;
+    const billingData = {
+      type: billingType,
+      name: billingType === "pj"
+        ? billingCompanyName
+        : `${billingLastName} ${billingFirstName}`.trim(),
+      cui: billingType === "pj" ? billingCui : undefined,
+      companyName: billingType === "pj" ? billingCompanyName : undefined,
+      firstName: billingFirstName,
+      lastName: billingLastName,
+      street: billingStreet,
+      number: billingNumber,
+      city: billingCity,
+      county: billingCounty,
+      email: clientEmail,
+      address: `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}`,
+    };
+
+    // Transfer bancar
+    if (payMethod === "bank") {
+      try {
+        const res = await fetch("/api/booking/bank-transfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vehicleId: selected.vehicleId,
+            companyId: selected.companyId,
+            requestId,
+            departureDate,
+            returnDate: isRoundTrip ? returnDate : null,
+            totalPrice: selected.estimatedPrice,
+            currency: "ron",
+            billingData,
+            route,
+            transporterName: selected.companyName,
+            transporterEmail: selected.companyEmail,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setBankDone({ reference: data.reference });
+        }
+      } catch {
+        // ignore
+      }
+      setPaying(false);
+      return;
+    }
+
     // Go to Stripe checkout
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -316,38 +368,21 @@ export function RequestTransportForm() {
           subtotalWithVat: selected.subtotalWithVat,
           platformFee: selected.platformFee,
           currency: "ron",
-          description: `Transport ${pickupCity} → ${dropoffCity}, ${departureDate}, ${passengers} pers. | ${selected.companyName}`,
+          description: `Transport ${route}, ${departureDate}, ${passengers} pers. | ${selected.companyName}`,
           vehicleId: selected.vehicleId,
           companyId: selected.companyId,
           requestId,
           departureDate,
           returnDate: isRoundTrip ? returnDate : null,
-          // Stripe Connect
           transporterStripeAccountId: selected.companyStripeAccountId || null,
-          // Invoice data
           transporterName: selected.companyName,
           transporterCui: selected.companyCui,
           transporterEmail: selected.companyEmail,
           transporterSeries: selected.companySmartbillSeries || "",
-          route: `${pickupCity} → ${dropoffCity}`,
+          route,
           totalKm: selected.totalKmBillable,
           pricePerKm: selected.pricePerKm,
-          billingData: {
-            type: billingType,
-            name: billingType === "pj"
-              ? billingCompanyName
-              : `${billingLastName} ${billingFirstName}`.trim(),
-            cui: billingType === "pj" ? billingCui : undefined,
-            companyName: billingType === "pj" ? billingCompanyName : undefined,
-            firstName: billingFirstName,
-            lastName: billingLastName,
-            street: billingStreet,
-            number: billingNumber,
-            city: billingCity,
-            county: billingCounty,
-            email: clientEmail,
-            address: `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}`,
-          },
+          billingData,
         }),
       });
       const data = await res.json();
@@ -780,17 +815,58 @@ export function RequestTransportForm() {
             </div>
           </div>
 
+          {/* Bank transfer success */}
+          {bankDone && (
+            <div className="rounded-xl border-2 border-blue-300 bg-blue-50 p-5">
+              <h4 className="text-lg font-bold text-blue-800 mb-2">Rezervare Înregistrată!</h4>
+              <p className="text-sm text-gray-600 mb-3">Detaliile pentru transfer bancar au fost trimise pe email.</p>
+              <div className="rounded-lg bg-white p-4 border border-blue-200 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">IBAN:</span><span className="font-mono font-medium">RO49 AAAA 1B31 0075 9384 0000</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Banca:</span><span className="font-medium">Banca Transilvania</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Suma:</span><span className="font-bold text-red-600">{Math.round(selected.estimatedPrice).toLocaleString()} RON</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Referință:</span><span className="font-mono font-bold text-primary-600">{bankDone.reference}</span></div>
+              </div>
+              <p className="mt-3 text-xs text-yellow-700 bg-yellow-50 rounded p-2">
+                Menționează referința <strong>{bankDone.reference}</strong> în descrierea plății. Confirmarea vine în 1-2 zile lucrătoare.
+              </p>
+            </div>
+          )}
+
+          {!bankDone && (
+          <>
+          {/* Payment method */}
+          <div className="flex gap-3">
+            <label className={`flex flex-1 items-center gap-2 rounded-lg border-2 p-3 cursor-pointer text-sm ${payMethod === "card" ? "border-green-500 bg-green-50" : "border-gray-200"}`}>
+              <input type="radio" checked={payMethod === "card"} onChange={() => setPayMethod("card")} className="h-3.5 w-3.5 text-green-600" />
+              <CreditCard className="h-4 w-4 text-gray-500" />
+              <span>Card bancar</span>
+            </label>
+            <label className={`flex flex-1 items-center gap-2 rounded-lg border-2 p-3 cursor-pointer text-sm ${payMethod === "bank" ? "border-blue-500 bg-blue-50" : "border-gray-200"}`}>
+              <input type="radio" checked={payMethod === "bank"} onChange={() => setPayMethod("bank")} className="h-3.5 w-3.5 text-blue-600" />
+              <Building2 className="h-4 w-4 text-gray-500" />
+              <span>Transfer bancar</span>
+            </label>
+          </div>
+
           <button
             type="submit"
             disabled={paying}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-4 text-base font-bold text-white shadow-lg transition hover:bg-green-700 disabled:opacity-60"
+            className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold text-white shadow-lg transition disabled:opacity-60 ${
+              payMethod === "card" ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
-            <CreditCard className="h-5 w-5" />
-            {paying ? "Se procesează..." : `Plătește ${Math.round(selected.estimatedPrice).toLocaleString()} RON`}
+            {payMethod === "card" ? <CreditCard className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}
+            {paying ? "Se procesează..." : payMethod === "card"
+              ? `Plătește cu cardul ${Math.round(selected.estimatedPrice).toLocaleString()} RON`
+              : "Rezervă cu transfer bancar"}
           </button>
           <p className="text-center text-xs text-gray-400">
-            Plată securizată prin Stripe. Datele cardului nu sunt stocate de ATPSOR.
+            {payMethod === "card"
+              ? "Plată securizată prin Stripe. Datele cardului nu sunt stocate de ATPSOR."
+              : "Vei primi detaliile contului bancar pe email. Rezervarea se confirmă la primirea plății."}
           </p>
+          </>
+          )}
         </form>
       </div>
     );
