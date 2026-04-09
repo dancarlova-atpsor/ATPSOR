@@ -33,6 +33,7 @@ import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import { uploadFile } from "@/lib/supabase/storage";
 import BookingLinkForm from "@/components/transporter/BookingLinkForm";
 import { DocumentUpload } from "@/components/transporter/DocumentUpload";
+import VehicleCalendar from "@/components/transporter/VehicleCalendar";
 
 const VEHICLE_DOC_TYPES = [
   { type: "vehicle_registration_itp", label: "Talon cu ITP valabil" },
@@ -912,6 +913,11 @@ export default function TransporterDashboard() {
 
       {activeTab === "vehicles" && (
         <div className="space-y-4">
+          {/* Calendar disponibilitate */}
+          {vehicles.length > 0 && (
+            <VehicleCalendar vehicles={vehicles} blocks={vehicleBlocks} />
+          )}
+
           {vehicles.length === 0 ? (
             <div className="py-12 text-center">
               <Bus className="mx-auto h-12 w-12 text-gray-300" />

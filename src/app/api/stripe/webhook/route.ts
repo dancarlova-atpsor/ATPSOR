@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/config";
 import { generateAllInvoices } from "@/lib/invoicing";
+import {
+  sendBookingConfirmationToClient,
+  sendBookingNotificationToTransporter,
+  sendBookingNotificationToAdmin,
+} from "@/lib/emails";
 import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
 
@@ -10,6 +15,57 @@ function createServiceClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { cookies: { getAll: () => [], setAll: () => {} } }
   );
+}
+
+// Helper: fetch vehicle name for emails
+async function getVehicleName(supabase: ReturnType<typeof createServiceClient>, vehicleId: string | undefined) {
+  if (!vehicleId) return undefined;
+  const { data } = await supabase.from("vehicles").select("name").eq("id", vehicleId).single();
+  return data?.name || undefined;
+}
+
+// Helper: fetch transporter email from company
+async function getTransporterEmail(supabase: ReturnType<typeof createServiceClient>, companyId: string | undefined) {
+  if (!companyId) return { email: "", name: "" };
+  const { data } = await supabase.from("companies").select("email, name, owner_id").eq("id", companyId).single();
+  if (data?.email) return { email: data.email, name: data.name || "" };
+  // Fallback: get email from owner profile
+  if (data?.owner_id) {
+    const { data: profile } = await supabase.from("profiles").select("email").eq("id", data.owner_id).single();
+    return { email: profile?.email || "", name: data.name || "" };
+  }
+  return { email: "", name: data?.name || "" };
+}
+
+// Helper: send all notification emails (fire-and-forget)
+async function sendBookingEmails(params: {
+  route: string;
+  departureDate: string;
+  returnDate?: string;
+  clientName: string;
+  clientEmail: string;
+  transporterName: string;
+  transporterEmail: string;
+  vehicleName?: string;
+  totalPrice: number;
+  currency: string;
+}) {
+  const promises: Promise<void>[] = [];
+
+  // Email to client
+  if (params.clientEmail) {
+    promises.push(sendBookingConfirmationToClient(params));
+  }
+
+  // Email to transporter
+  if (params.transporterEmail) {
+    promises.push(sendBookingNotificationToTransporter(params));
+  }
+
+  // Email to admin
+  promises.push(sendBookingNotificationToAdmin(params));
+
+  await Promise.allSettled(promises);
 }
 
 export async function POST(request: Request) {
@@ -40,9 +96,10 @@ export async function POST(request: Request) {
     } = meta;
 
     const supabase = createServiceClient();
+    const totalPrice = (session.amount_total || 0) / 100;
+    const currency = session.currency || "ron";
 
     console.log("Webhook metadata:", JSON.stringify(meta));
-    console.log("offerId:", offerId, "vehicleId:", vehicleId, "departureDate:", departureDate);
 
     // Direct booking flow (no offer in DB)
     if (vehicleId && departureDate) {
@@ -65,8 +122,8 @@ export async function POST(request: Request) {
           offer_id: null,
           client_id: userId || null,
           company_id: companyId || null,
-          total_price: (session.amount_total || 0) / 100,
-          currency: session.currency || "ron",
+          total_price: totalPrice,
+          currency,
           status: "confirmed",
           notes: requestId ? `request:${requestId}` : null,
         })
@@ -82,14 +139,29 @@ export async function POST(request: Request) {
         await supabase.from("payments").insert({
           booking_id: booking.id,
           stripe_payment_id: session.payment_intent as string,
-          amount: (session.amount_total || 0) / 100,
-          currency: session.currency || "ron",
+          amount: totalPrice,
+          currency,
           status: "paid",
         });
 
+        // Send notification emails (fire-and-forget)
+        const vehicleName = await getVehicleName(supabase, vehicleId);
+        const transporter = await getTransporterEmail(supabase, companyId);
+        sendBookingEmails({
+          route: meta.route || "N/A",
+          departureDate,
+          returnDate,
+          clientName: meta.billing_name || "",
+          clientEmail: meta.billing_email || "",
+          transporterName: meta.transporterName || transporter.name,
+          transporterEmail: meta.transporterEmail || transporter.email,
+          vehicleName,
+          totalPrice,
+          currency,
+        }).catch((err) => console.error("Email notification error:", err));
+
         // Generate SmartBill invoices (fire-and-forget)
         if (meta.transporterCui && meta.route) {
-          // Fetch transporter SmartBill credentials
           let sbUsername = "";
           let sbToken = "";
           if (companyId) {
@@ -125,12 +197,21 @@ export async function POST(request: Request) {
     if (offerId && !offerId.startsWith("direct-")) {
       const { data: offer } = await supabase
         .from("offers")
-        .select("*, request:transport_requests(*)")
+        .select("*, request:transport_requests(*), company:companies(name, email, owner_id)")
         .eq("id", offerId)
         .single();
 
       if (offer) {
-        const req = offer.request as { departure_date?: string; return_date?: string } | null;
+        const req = offer.request as { departure_date?: string; return_date?: string; pickup_city?: string; dropoff_city?: string } | null;
+        const comp = offer.company as { name?: string; email?: string; owner_id?: string } | null;
+
+        // Update offer status to accepted
+        await supabase.from("offers").update({ status: "accepted" }).eq("id", offerId);
+
+        // Update request status to fulfilled
+        if (requestId) {
+          await supabase.from("transport_requests").update({ status: "fulfilled" }).eq("id", requestId);
+        }
 
         const { data: booking } = await supabase
           .from("bookings")
@@ -138,8 +219,8 @@ export async function POST(request: Request) {
             offer_id: offerId,
             client_id: userId || null,
             company_id: offer.company_id,
-            total_price: offer.price,
-            currency: offer.currency,
+            total_price: totalPrice,
+            currency,
             status: "confirmed",
           })
           .select()
@@ -149,8 +230,8 @@ export async function POST(request: Request) {
           await supabase.from("payments").insert({
             booking_id: booking.id,
             stripe_payment_id: session.payment_intent as string,
-            amount: offer.price,
-            currency: offer.currency,
+            amount: totalPrice,
+            currency,
             status: "paid",
           });
 
@@ -165,9 +246,25 @@ export async function POST(request: Request) {
             });
           }
 
+          // Send notification emails (fire-and-forget)
+          const vehicleName = await getVehicleName(supabase, offer.vehicle_id);
+          const route = meta.route || (req?.pickup_city && req?.dropoff_city ? `${req.pickup_city} → ${req.dropoff_city}` : "N/A");
+          const transporter = await getTransporterEmail(supabase, offer.company_id);
+          sendBookingEmails({
+            route,
+            departureDate: req?.departure_date || departureDate || "",
+            returnDate: req?.return_date || returnDate,
+            clientName: meta.billing_name || "",
+            clientEmail: meta.billing_email || "",
+            transporterName: meta.transporterName || transporter.name,
+            transporterEmail: meta.transporterEmail || transporter.email,
+            vehicleName,
+            totalPrice,
+            currency,
+          }).catch((err) => console.error("Email notification error:", err));
+
           // Generate SmartBill invoices (fire-and-forget)
           if (meta.transporterCui && meta.route) {
-            // Fetch transporter SmartBill credentials
             let sbUser = "";
             let sbTok = "";
             if (offer.company_id) {

@@ -135,11 +135,14 @@ export default function RequestOffersPage() {
   const totalBillableKm = dayCount * 200;
   const totalEstimatedKm = totalBillableKm; // Without day_programs, estimated = billable
 
-  async function handlePayment(offerId: string, totalPrice: number) {
+  async function handlePayment(offerId: string, totalPrice: number, offer: OfferWithContract) {
     if (!request) return;
     setProcessingPayment(offerId);
 
     const billingEmail = (request as TransportRequest & { client_email?: string }).client_email || "";
+    const pricePerKm = Number(offer.price);
+    const { basePriceNoVat, tva, basePriceWithVat, platformFee } = calculateOfferPrice(pricePerKm, totalBillableKm);
+    const route = `${request.pickup_city} → ${request.dropoff_city}`;
 
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -147,9 +150,24 @@ export default function RequestOffersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           offerId,
-          amount: totalPrice,
+          subtotalWithVat: basePriceWithVat,
+          platformFee,
           currency: "ron",
-          description: `Transport ${request.pickup_city} → ${request.dropoff_city}, ${request.departure_date}`,
+          description: `Transport ${route}, ${request.departure_date}`,
+          vehicleId: offer.vehicle_id,
+          companyId: offer.company_id,
+          requestId: request.id,
+          departureDate: request.departure_date,
+          returnDate: request.return_date || null,
+          transporterStripeAccountId: offer.company.stripe_account_id || null,
+          // Invoice metadata
+          transporterName: offer.company.name,
+          transporterCui: offer.company.cui || "",
+          transporterEmail: offer.company.email || "",
+          transporterSeries: offer.company.smartbill_series || "",
+          route,
+          totalKm: totalBillableKm,
+          pricePerKm,
           billingData: {
             name: `${billingFirstName} ${billingLastName}`.trim(),
             firstName: billingFirstName,
@@ -168,14 +186,12 @@ export default function RequestOffersPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        // Fallback - Stripe not configured
-        await new Promise((r) => setTimeout(r, 1500));
-        router.push("/booking/success");
+        setProcessingPayment(null);
+        setError("Eroare la crearea sesiunii de plată.");
       }
     } catch {
-      // Fallback
-      await new Promise((r) => setTimeout(r, 1500));
-      router.push("/booking/success");
+      setProcessingPayment(null);
+      setError("Eroare la conectarea cu serverul de plăți.");
     }
   }
 
@@ -556,7 +572,7 @@ export default function RequestOffersPage() {
                         </span>
                       </label>
                       <button
-                        onClick={() => handlePayment(offer.id, totalPrice)}
+                        onClick={() => handlePayment(offer.id, totalPrice, offer)}
                         disabled={!isContractAccepted || isProcessing || !billingFirstName || !billingLastName || !billingStreet || !billingNumber || !billingCity || !billingCounty}
                         className={`inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold shadow-lg transition-all ${
                           isContractAccepted && billingFirstName && billingLastName && billingStreet && billingNumber && billingCity && billingCounty
