@@ -93,6 +93,7 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<SmartB
       address: params.client.address || "",
       city: params.client.city || "",
       county: params.client.county || "",
+      country: "Romania",
       email: params.client.email || "",
       phone: params.client.phone || "",
     },
