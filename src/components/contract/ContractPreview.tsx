@@ -58,7 +58,7 @@ export default function ContractPreview({
             <p><strong>Traseu:</strong> {route}</p>
             <p><strong>Data transport:</strong> {departureDate}{returnDate ? ` → ${returnDate}` : ""}</p>
             {vehicleName && <p><strong>Vehicul:</strong> {vehicleName}{vehicleSeats ? `, ${vehicleSeats} locuri` : ""}</p>}
-            <p><strong>Valoare totala:</strong> {totalPrice.toLocaleString("ro-RO")} RON (inclusiv TVA si comision platforma)</p>
+            <p><strong>Valoare totala:</strong> {totalPrice.toLocaleString("ro-RO")} RON (TVA inclus)</p>
           </div>
         </div>
 

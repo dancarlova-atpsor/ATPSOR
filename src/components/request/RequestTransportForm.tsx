@@ -636,7 +636,7 @@ export function RequestTransportForm() {
                         <div className="text-2xl font-bold text-primary-600">
                           {Math.round(opt.estimatedPrice).toLocaleString()} RON
                         </div>
-                        <div className="text-xs text-gray-400">cu TVA și comision</div>
+                        <div className="text-xs text-gray-400">TVA inclus</div>
                         <button
                           onClick={() => selectTransporter(opt)}
                           className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
@@ -681,7 +681,7 @@ export function RequestTransportForm() {
           <div className="mt-3 rounded-lg bg-green-100 px-4 py-2 text-center">
             <span className="text-sm text-gray-600">Total de plată: </span>
             <span className="text-xl font-bold text-green-700">{Math.round(selected.estimatedPrice).toLocaleString()} RON</span>
-            <span className="ml-1 text-xs text-gray-400">(cu TVA și comision)</span>
+            <span className="ml-1 text-xs text-gray-400">(TVA inclus)</span>
           </div>
         </div>
 

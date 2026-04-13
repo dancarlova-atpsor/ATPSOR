@@ -378,7 +378,7 @@ export default function RequestOffersPage() {
                       <div className="text-2xl font-bold text-primary-600">
                         {Math.round(totalPrice).toLocaleString()} RON
                       </div>
-                      <div className="text-xs text-gray-400">cu TVA si comision incluse</div>
+                      <div className="text-xs text-gray-400">TVA inclus</div>
                     </div>
                   </div>
 
@@ -452,15 +452,6 @@ export default function RequestOffersPage() {
                               <td className="py-2 text-gray-600">Subtotal cu TVA:</td>
                               <td className="py-2 text-right font-medium">{basePriceWithVat.toFixed(0)} RON</td>
                             </tr>
-                            <tr className="border-b border-gray-100">
-                              <td className="py-2 text-gray-600">
-                                <span className="flex items-center gap-1">
-                                  Comision platforma ({PLATFORM_FEE_PERCENT}%):
-                                  <Info className="h-3 w-3 text-gray-400" />
-                                </span>
-                              </td>
-                              <td className="py-2 text-right font-medium">{platformFee.toFixed(0)} RON</td>
-                            </tr>
                             <tr>
                               <td className="pt-2 text-base font-bold text-gray-900">TOTAL DE PLATA:</td>
                               <td className="pt-2 text-right text-base font-bold text-primary-600">
@@ -470,7 +461,7 @@ export default function RequestOffersPage() {
                           </tbody>
                         </table>
                         <p className="mt-2 text-xs text-gray-400">
-                          Pretul include TVA {TVA_PERCENT}% si comisionul platformei de {PLATFORM_FEE_PERCENT}%.
+                          Pretul include TVA {TVA_PERCENT}%.
                         </p>
                       </div>
                     )}
@@ -687,8 +678,7 @@ export default function RequestOffersPage() {
           <p>5. <strong>Plata se proceseaza</strong> &rarr; primesti confirmare pe email &rarr; rezervarea este activa.</p>
           <p className="mt-3 text-xs text-gray-400">
             Platile sunt procesate securizat prin Stripe. ATPSOR nu stocheaza datele cardului.
-            Comisionul de {PLATFORM_FEE_PERCENT}% este inclus automat in pretul afisat.
-            Transportatorul primeste suma minus comisionul in contul sau.
+            Pretul afisat include TVA.
           </p>
         </div>
       </div>
