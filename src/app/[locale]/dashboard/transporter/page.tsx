@@ -886,7 +886,7 @@ export default function TransporterDashboard() {
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
-                        {request.departure_date}
+                        {request.departure_date}{request.return_date ? ` → ${request.return_date}` : ""}
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5" />
