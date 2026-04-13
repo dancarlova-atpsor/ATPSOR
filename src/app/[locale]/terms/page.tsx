@@ -89,11 +89,7 @@ export default function TermsPage() {
           <ul>
             <li>Tariful de transport (stabilit de transportator, per km)</li>
             <li>TVA 21%</li>
-            <li>Comisionul platformei de 5% din subtotalul cu TVA</li>
           </ul>
-          <p>
-            Se aplica un minim de <strong>200 km facturabili per zi</strong> de transport.
-          </p>
           <p>Platile se pot efectua prin:</p>
           <ul>
             <li><strong>Card bancar</strong> — procesat securizat prin Stripe. ATPSOR nu stocheaza datele cardului.</li>
@@ -123,7 +119,6 @@ export default function TermsPage() {
           </p>
           <ul>
             <li><strong>Factura de transport</strong> — emisa de transportator catre client</li>
-            <li><strong>Factura de comision</strong> — emisa de ATPSOR catre transportator (5%)</li>
           </ul>
           <p>
             La plata cu cardul, factura se marcheaza automat ca incasata.
