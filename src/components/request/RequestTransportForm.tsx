@@ -25,6 +25,7 @@ import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { VehicleCategory } from "@/types/database";
 import { calculatePrice, calculatePriceCustom, calculatePriceFromKm, TARIFFS, PLATFORM_FEE_RATE, TVA_RATE } from "@/lib/distances";
 import { createClient } from "@/lib/supabase/client";
+import ContractPreview from "@/components/contract/ContractPreview";
 
 interface TransporterOption {
   vehicleId: string;
@@ -43,6 +44,8 @@ interface TransporterOption {
   companyEmail: string;
   companyStripeAccountId: string | null;
   companySmartbillSeries: string | null;
+  companyContractUrl: string | null;
+  companyContractName: string | null;
   estimatedPrice: number;
   subtotalWithVat: number;
   platformFee: number;
@@ -94,6 +97,7 @@ export function RequestTransportForm() {
   const [paying, setPaying] = useState(false);
   const [payMethod, setPayMethod] = useState<"card" | "bank">("card");
   const [bankDone, setBankDone] = useState<{ reference: string } | null>(null);
+  const [contractAccepted, setContractAccepted] = useState(false);
 
   // Auto-fill contact from profile
   useEffect(() => {
@@ -245,6 +249,8 @@ export function RequestTransportForm() {
           companyEmail: company.email || "",
           companyStripeAccountId: company.stripe_account_id || null,
           companySmartbillSeries: company.smartbill_series || null,
+          companyContractUrl: (company as any).contract_template_url || null,
+          companyContractName: (company as any).contract_template_name || null,
           estimatedPrice: priceCalc.totalPrice,
           subtotalWithVat: priceCalc.subtotalWithVat,
           platformFee: priceCalc.platformFee,
@@ -815,6 +821,25 @@ export function RequestTransportForm() {
             </div>
           </div>
 
+          {/* Contract preview + acceptance */}
+          {!bankDone && (
+            <ContractPreview
+              transporterName={selected.companyName}
+              transporterCui={selected.companyCui}
+              clientName={clientName}
+              route={`${pickupCity} → ${dropoffCity}`}
+              departureDate={departureDate}
+              returnDate={isRoundTrip ? returnDate : null}
+              vehicleName={selected.vehicleName}
+              vehicleSeats={selected.vehicleSeats}
+              totalPrice={selected.estimatedPrice}
+              contractUrl={selected.companyContractUrl}
+              contractName={selected.companyContractName}
+              accepted={contractAccepted}
+              onToggle={() => setContractAccepted((v) => !v)}
+            />
+          )}
+
           {/* Bank transfer success */}
           {bankDone && (
             <div className="rounded-xl border-2 border-blue-300 bg-blue-50 p-5">
@@ -850,7 +875,7 @@ export function RequestTransportForm() {
 
           <button
             type="submit"
-            disabled={paying}
+            disabled={paying || !contractAccepted}
             className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold text-white shadow-lg transition disabled:opacity-60 ${
               payMethod === "card" ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"
             }`}

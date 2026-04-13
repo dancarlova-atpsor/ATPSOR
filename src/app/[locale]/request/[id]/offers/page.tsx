@@ -638,7 +638,8 @@ export default function RequestOffersPage() {
                           className="mt-0.5 h-5 w-5 rounded border-gray-300 text-primary-500 focus:ring-primary-200"
                         />
                         <span className="text-sm text-gray-700">
-                          Am citit si accept <strong>contractul de transport</strong> al {offer.company.name}
+                          Am citit si accept <strong>contractul de transport</strong> al {offer.company.name} si{" "}
+                          <a href="/ro/terms" target="_blank" className="text-primary-500 underline hover:text-primary-600">Termenii si Conditiile ATPSOR</a>
                         </span>
                       </label>
                       <button

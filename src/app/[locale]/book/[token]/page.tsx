@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ContractPreview from "@/components/contract/ContractPreview";
 import {
   MapPin,
   Calendar,
@@ -56,6 +57,7 @@ export default function BookPage() {
   const [paymentMethod, setPaymentMethod] = useState<"card" | "bank">("card");
   const [bankTransferDone, setBankTransferDone] = useState(false);
   const [bankReference, setBankReference] = useState("");
+  const [contractAccepted, setContractAccepted] = useState(false);
 
   // Billing form
   const [billingName, setBillingName] = useState("");
@@ -485,6 +487,23 @@ export default function BookPage() {
             </div>
           </div>
 
+          {/* Contract Preview + Acceptance */}
+          <div className="mb-6">
+            <ContractPreview
+              transporterName={bookingLink.companies?.name || ""}
+              transporterCui={bookingLink.companies?.cui}
+              clientName={billingName}
+              route={`${bookingLink.pickup_city} → ${bookingLink.dropoff_city}`}
+              departureDate={bookingLink.departure_date}
+              returnDate={bookingLink.return_date}
+              vehicleName={bookingLink.vehicles?.name}
+              vehicleSeats={bookingLink.vehicles?.seats}
+              totalPrice={bookingLink.total_price}
+              accepted={contractAccepted}
+              onToggle={() => setContractAccepted((v) => !v)}
+            />
+          </div>
+
           {/* Payment Method Selection */}
           <div className="mb-6 rounded-xl bg-white shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gray-800 px-6 py-4">
@@ -525,7 +544,7 @@ export default function BookPage() {
           {/* Pay Button */}
           <button
             type="submit"
-            disabled={paying}
+            disabled={paying || !contractAccepted}
             className={`w-full flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-lg font-semibold text-white shadow-md disabled:opacity-50 transition-colors ${
               paymentMethod === "card"
                 ? "bg-green-600 hover:bg-green-700"
