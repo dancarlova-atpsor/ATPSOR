@@ -130,6 +130,102 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<SmartB
   }
 }
 
+// Register payment on invoice (mark as collected/incasata)
+export async function registerPayment(params: {
+  cif: string;
+  seriesName: string;
+  number: string;
+  paymentType?: string; // "Card", "Ordin plata", etc.
+  value?: number;
+  authHeader?: string;
+}): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
+  if (!auth || auth === "Basic Og==") return null;
+
+  try {
+    const res = await fetch(`${SMARTBILL_API_URL}/payment`, {
+      method: "POST",
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        companyVatCode: params.cif,
+        issueDate: new Date().toISOString().split("T")[0],
+        type: params.paymentType || "Card",
+        isCash: false,
+        value: params.value || 0,
+        useInvoiceDetails: true,
+        invoicesList: [{
+          seriesName: params.seriesName,
+          number: params.number,
+        }],
+      }),
+    });
+
+    const data = await res.json();
+    return data as SmartBillResponse;
+  } catch (error) {
+    console.error("SmartBill register payment error:", error);
+    return null;
+  }
+}
+
+// Create proforma (estimate) via SmartBill API
+export async function createProforma(params: CreateInvoiceParams): Promise<SmartBillResponse | null> {
+  const auth = params.authHeader || getAuthHeader();
+
+  if (!auth || auth === "Basic Og==") {
+    console.log("SmartBill not configured, skipping proforma");
+    return null;
+  }
+
+  const body = {
+    companyVatCode: params.issuerCui,
+    client: {
+      name: params.client.name,
+      vatCode: params.client.vatCode || "",
+      address: params.client.address || "",
+      city: params.client.city || "",
+      county: params.client.county || "",
+      country: "Romania",
+      email: params.client.email || "",
+      phone: params.client.phone || "",
+    },
+    seriesName: params.seriesName,
+    currency: params.currency || "RON",
+    isDraft: params.isDraft ?? false,
+    products: params.products.map((p) => ({
+      name: p.name,
+      code: p.code || "",
+      measuringUnitName: p.measuringUnitName,
+      quantity: p.quantity,
+      price: p.price,
+      isTaxIncluded: p.isTaxIncluded,
+      taxPercentage: p.taxPercentage,
+    })),
+  };
+
+  try {
+    const res = await fetch(`${SMARTBILL_API_URL}/estimate`, {
+      method: "POST",
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+    return data as SmartBillResponse;
+  } catch (error) {
+    console.error("SmartBill proforma error:", error);
+    return null;
+  }
+}
+
 // Generate transport invoice (Transporter → Client)
 // Uses transporter's own SmartBill credentials if available
 export async function generateTransportInvoice(params: {

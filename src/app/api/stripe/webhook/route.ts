@@ -187,6 +187,7 @@ export async function POST(request: Request) {
             clientAddress: meta.billing_address || "",
             clientCity: meta.billing_city || "",
             clientCounty: meta.billing_county || "",
+            paymentMethod: "card",
           }).catch((err) => console.error("Invoice generation error:", err));
         }
       }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServerClient } from "@supabase/ssr";
 import { sendBookingConfirmationToClient, sendBookingNotificationToTransporter, sendBookingNotificationToAdmin } from "@/lib/emails";
+import { generateAllInvoices } from "@/lib/invoicing";
 import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -81,6 +82,39 @@ export async function POST(request: Request) {
       currency,
       status: "pending",
     });
+
+    // Generate proforma (not invoice) for bank transfer
+    if (companyId) {
+      const { data: comp } = await serviceClient
+        .from("companies")
+        .select("smartbill_username, smartbill_token, smartbill_series, cui, name, email")
+        .eq("id", companyId)
+        .single();
+
+      if (comp?.smartbill_username && comp?.smartbill_token) {
+        generateAllInvoices({
+          bookingId: booking.id,
+          subtotalWithVat: totalPrice * 0.95, // 95% transport
+          platformFee: totalPrice * 0.05,     // 5% comision
+          route: route || "N/A",
+          date: departureDate || "",
+          totalKm: 0,
+          pricePerKm: 0,
+          transporterName: comp.name || transporterName || "",
+          transporterCui: comp.cui || "",
+          transporterEmail: comp.email || transporterEmail || "",
+          transporterSeries: comp.smartbill_series || "",
+          transporterSmartBillUsername: comp.smartbill_username,
+          transporterSmartBillToken: comp.smartbill_token,
+          clientName: billingData.name || "",
+          clientEmail: billingData.email || "",
+          clientAddress: billingData.address || "",
+          clientCity: billingData.city || "",
+          clientCounty: billingData.county || "",
+          paymentMethod: "bank_transfer",
+        }).catch((err) => console.error("Proforma generation error:", err));
+      }
+    }
 
     // Send email with bank transfer details
     if (resend && billingData.email) {
