@@ -164,9 +164,10 @@ export async function POST(request: Request) {
         if (meta.transporterCui && meta.route) {
           let sbUsername = "";
           let sbToken = "";
+          let sbProforma = "";
           if (companyId) {
-            const { data: comp } = await supabase.from("companies").select("smartbill_username, smartbill_token").eq("id", companyId).single();
-            if (comp) { sbUsername = comp.smartbill_username || ""; sbToken = comp.smartbill_token || ""; }
+            const { data: comp } = await supabase.from("companies").select("smartbill_username, smartbill_token, smartbill_proforma_series").eq("id", companyId).single();
+            if (comp) { sbUsername = comp.smartbill_username || ""; sbToken = comp.smartbill_token || ""; sbProforma = (comp as any).smartbill_proforma_series || ""; }
           }
           generateAllInvoices({
             bookingId: booking.id,
@@ -180,6 +181,7 @@ export async function POST(request: Request) {
             transporterCui: meta.transporterCui || "",
             transporterEmail: meta.transporterEmail || "",
             transporterSeries: meta.transporterSeries || "",
+            transporterProformaSeries: sbProforma,
             transporterSmartBillUsername: sbUsername,
             transporterSmartBillToken: sbToken,
             clientName: meta.billing_name || "",
@@ -268,9 +270,10 @@ export async function POST(request: Request) {
           if (meta.transporterCui && meta.route) {
             let sbUser = "";
             let sbTok = "";
+            let sbProf = "";
             if (offer.company_id) {
-              const { data: comp2 } = await supabase.from("companies").select("smartbill_username, smartbill_token").eq("id", offer.company_id).single();
-              if (comp2) { sbUser = comp2.smartbill_username || ""; sbTok = comp2.smartbill_token || ""; }
+              const { data: comp2 } = await supabase.from("companies").select("smartbill_username, smartbill_token, smartbill_proforma_series").eq("id", offer.company_id).single();
+              if (comp2) { sbUser = comp2.smartbill_username || ""; sbTok = comp2.smartbill_token || ""; sbProf = (comp2 as any).smartbill_proforma_series || ""; }
             }
             generateAllInvoices({
               bookingId: booking.id,
@@ -284,6 +287,7 @@ export async function POST(request: Request) {
               transporterCui: meta.transporterCui || "",
               transporterEmail: meta.transporterEmail || "",
               transporterSeries: meta.transporterSeries || "",
+              transporterProformaSeries: sbProf,
               transporterSmartBillUsername: sbUser,
               transporterSmartBillToken: sbTok,
               clientName: meta.billing_name || "",

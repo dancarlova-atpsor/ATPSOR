@@ -36,6 +36,7 @@ interface GenerateAllInvoicesParams {
   transporterCui: string;
   transporterEmail: string;
   transporterSeries: string;
+  transporterProformaSeries?: string;
   transporterSmartBillUsername?: string;
   transporterSmartBillToken?: string;
   // Client
@@ -150,9 +151,9 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         console.log(`Payment registered: ${payResult?.number || "pending"}`);
       }
     } else {
-      // Transfer bancar → Proforma
+      // Transfer bancar → Proforma (foloseste seria de proforma, nu de factura)
       result = await createProforma({
-        seriesName: params.transporterSeries,
+        seriesName: params.transporterProformaSeries || params.transporterSeries,
         issuerCui: params.transporterCui,
         authHeader: transporterAuth,
         client: {

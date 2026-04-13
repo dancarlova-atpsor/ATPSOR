@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     if (companyId) {
       const { data: comp } = await serviceClient
         .from("companies")
-        .select("smartbill_username, smartbill_token, smartbill_series, cui, name, email")
+        .select("smartbill_username, smartbill_token, smartbill_series, smartbill_proforma_series, cui, name, email")
         .eq("id", companyId)
         .single();
 
@@ -104,6 +104,7 @@ export async function POST(request: Request) {
           transporterCui: comp.cui || "",
           transporterEmail: comp.email || transporterEmail || "",
           transporterSeries: comp.smartbill_series || "",
+          transporterProformaSeries: (comp as any).smartbill_proforma_series || "",
           transporterSmartBillUsername: comp.smartbill_username,
           transporterSmartBillToken: comp.smartbill_token,
           clientName: billingData.name || "",

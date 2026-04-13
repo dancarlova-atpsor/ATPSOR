@@ -1678,7 +1678,17 @@ export default function TransporterDashboard() {
                   value={company.smartbill_series || ""}
                   onChange={(e) => setCompany({...company, smartbill_series: e.target.value})}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  placeholder="Ex: FCT, SMRT, etc."
+                  placeholder="Ex: TRANS LEI"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Serie proformă</label>
+                <input
+                  type="text"
+                  value={company.smartbill_proforma_series || ""}
+                  onChange={(e) => setCompany({...company, smartbill_proforma_series: e.target.value})}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="Ex: TRANSLEI"
                 />
               </div>
               <button
@@ -1688,6 +1698,7 @@ export default function TransporterDashboard() {
                     smartbill_username: company.smartbill_username,
                     smartbill_token: company.smartbill_token,
                     smartbill_series: company.smartbill_series,
+                    smartbill_proforma_series: company.smartbill_proforma_series,
                   }).eq("id", company.id);
                   alert("SmartBill salvat!");
                 }}
