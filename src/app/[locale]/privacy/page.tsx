@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-bold">1. Operator de date</h2>
           <p>
             Operatorul de date cu caracter personal este <strong>Luxuria Trans &amp; Travel SRL</strong>,
-            CUI RO31261740, cu sediul in Com. Clinceni, Str. Sabarului 120, Jud. Ilfov, Romania,
+            CUI RO31261740, cu sediul in Str. Epocii, nr. 3B, parter, Bragadiru, Jud. Ilfov, Romania,
             care opereaza platforma ATPSOR (atpsor.ro) in beneficiul <strong>Asociatiei ATPSOR</strong> (CIF 52819099).
           </p>
         </section>

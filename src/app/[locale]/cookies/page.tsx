@@ -111,7 +111,7 @@ export default function CookiesPage() {
           <div className="rounded-lg bg-gray-50 p-4">
             <p><strong>Email:</strong> contact@atpsor.ro</p>
             <p><strong>Telefon:</strong> +40 745 635 657</p>
-            <p><strong>Operator:</strong> Luxuria Trans &amp; Travel SRL, CUI RO31261740</p>
+            <p><strong>Operator:</strong> Luxuria Trans &amp; Travel SRL, CUI RO31261740, Bragadiru, Ilfov</p>
           </div>
         </section>
 

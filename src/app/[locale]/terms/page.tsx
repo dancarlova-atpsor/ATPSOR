@@ -24,7 +24,7 @@ export default function TermsPage() {
           <h2 className="flex items-center gap-2 text-xl font-bold"><Shield className="h-5 w-5 text-primary-500" /> 1. Informatii Generale</h2>
           <p>
             Platforma ATPSOR (<strong>atpsor.ro</strong>) este operata de <strong>Luxuria Trans &amp; Travel SRL</strong>,
-            cu sediul in Com. Clinceni, Str. Sabarului 120, Jud. Ilfov, Romania, CUI RO31261740, J23/3456/2013,
+            cu sediul in Str. Epocii, nr. 3B, parter, Bragadiru, Jud. Ilfov, Romania, CUI RO31261740, J23/3456/2013,
             care a acordat drept de folosinta <strong>Asociatiei Transportatorilor de Persoane prin Serviciul Ocazional din Romania (ATPSOR)</strong>,
             cu sediul in Com. Clinceni, Str. Sabarului 120, Jud. Ilfov, CIF 52819099.
           </p>
