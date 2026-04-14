@@ -138,6 +138,27 @@ export async function POST(request: Request) {
               <tr><td style="padding:6px 0;color:#6b7280;">Total de plata:</td><td style="padding:6px 0;font-weight:bold;color:#dc2626;font-size:18px;">${totalPrice.toFixed(2)} RON</td></tr>
             </table>
 
+            <h2 style="color:#1e40af;font-size:16px;">Contract de Transport</h2>
+            <div style="background:white;border:2px solid #1e40af;border-radius:8px;padding:16px;margin-bottom:16px;">
+              <p style="margin:0 0 8px;font-weight:bold;color:#1e40af;font-size:14px;">CONTRACT DE TRANSPORT OCAZIONAL DE PERSOANE</p>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <tr><td style="padding:4px 0;color:#6b7280;width:130px;">Prestator:</td><td style="padding:4px 0;font-weight:bold;">${transporterName || "N/A"}</td></tr>
+                <tr><td style="padding:4px 0;color:#6b7280;">Beneficiar:</td><td style="padding:4px 0;font-weight:bold;">${billingData.name || "—"}</td></tr>
+                <tr><td style="padding:4px 0;color:#6b7280;">Traseu:</td><td style="padding:4px 0;font-weight:bold;">${route || "N/A"}</td></tr>
+                <tr><td style="padding:4px 0;color:#6b7280;">Data transport:</td><td style="padding:4px 0;font-weight:bold;">${departureDate}${returnDate ? ` → ${returnDate}` : ""}</td></tr>
+                <tr><td style="padding:4px 0;color:#6b7280;">Valoare:</td><td style="padding:4px 0;font-weight:bold;">${totalPrice.toFixed(2)} RON (TVA inclus)</td></tr>
+              </table>
+              <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;font-style:italic;">
+                Semnat electronic prin citire si acceptare pe platforma ATPSOR.
+              </div>
+              <div style="text-align:center;margin-top:12px;">
+                <a href="https://atpsor.ro/ro/contract/${booking.id}"
+                   style="display:inline-block;background:#1e40af;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13px;">
+                  Vezi/Descarca Contractul (PDF)
+                </a>
+              </div>
+            </div>
+
             <h2 style="color:#1e40af;font-size:16px;">Date Transfer Bancar</h2>
             <div style="background:white;border:2px solid #1e40af;border-radius:8px;padding:16px;">
               <table style="width:100%;border-collapse:collapse;">
@@ -152,7 +173,7 @@ export async function POST(request: Request) {
             <div style="margin-top:16px;padding:12px;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
               <p style="margin:0;font-size:13px;color:#92400e;">
                 <strong>Important:</strong> Mentioneaza referinta <strong>ATPSOR-${booking.id.substring(0, 8).toUpperCase()}</strong> in descrierea platii.
-                Rezervarea va fi confirmata dupa primirea platii (1-2 zile lucratoare).
+                Confirmarea o primiti in cel mai scurt timp, dupa procesarea platii dumneavoastra.
               </p>
             </div>
           </div>

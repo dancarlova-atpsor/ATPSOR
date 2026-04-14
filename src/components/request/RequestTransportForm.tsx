@@ -852,7 +852,7 @@ export function RequestTransportForm() {
                 <div className="flex justify-between"><span className="text-gray-500">Referință:</span><span className="font-mono font-bold text-primary-600">{bankDone.reference}</span></div>
               </div>
               <p className="mt-3 text-xs text-yellow-700 bg-yellow-50 rounded p-2">
-                Menționează referința <strong>{bankDone.reference}</strong> în descrierea plății. Confirmarea vine în 1-2 zile lucrătoare.
+                Menționează referința <strong>{bankDone.reference}</strong> în descrierea plății. Confirmarea o primiți în cel mai scurt timp, după procesarea plății.
               </p>
             </div>
           )}

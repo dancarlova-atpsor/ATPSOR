@@ -272,7 +272,7 @@ export default function BookPage() {
           <div className="mt-4 rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-left">
             <p className="text-sm text-yellow-800">
               <strong>Important:</strong> Menționează referința <strong>{bankReference}</strong> în
-              descrierea plății. Rezervarea se confirmă automat la primirea banilor (1-2 zile lucrătoare).
+              descrierea plății. Confirmarea o primiți în cel mai scurt timp, după procesarea plății dumneavoastră.
             </p>
           </div>
         </div>

@@ -328,8 +328,8 @@ export async function getInvoicePdf(params: {
   if (!auth || auth === "Basic Og==") return null;
 
   try {
-    const docType = params.isProforma ? "estimate" : "invoice";
-    const url = `${SMARTBILL_API_URL}/${docType}/pdf?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
+    // SmartBill foloseste acelasi endpoint pentru factura si proforma
+    const url = `${SMARTBILL_API_URL}/invoice/pdf?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
     const res = await fetch(url, {
       method: "GET",
       headers: {
