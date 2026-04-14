@@ -233,6 +233,45 @@ export async function sendInvoicePdfToClient(params: {
   }
 }
 
+// Email proforma fara PDF (fallback cand SmartBill PDF nu merge)
+export async function sendProformaInfoEmail(params: {
+  clientEmail: string;
+  clientName: string;
+  proformaNumber: string;
+  proformaSeries: string;
+  transporterName: string;
+  amount: number;
+}) {
+  if (!resend || !params.clientEmail) return;
+
+  const html = `${header(`ATPSOR - Proforma ${params.proformaSeries} ${params.proformaNumber}`)}
+    <p>Buna ziua${params.clientName ? `, ${params.clientName}` : ""},</p>
+    <p>S-a emis <strong>proforma ${params.proformaSeries} ${params.proformaNumber}</strong>
+    in valoare de <strong>${params.amount.toFixed(2)} RON</strong> de catre <strong>${params.transporterName}</strong>.</p>
+
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;margin:12px 0;">
+      <p style="margin:0;font-size:13px;color:#92400e;">
+        <strong>Pasul urmator:</strong> Efectueaza transferul bancar conform detaliilor primite anterior pe email.
+        Dupa primirea platii, vom emite factura fiscala in mod automat.
+      </p>
+    </div>
+
+    <p style="font-size:13px;color:#6b7280;">Pentru intrebari, contactati-ne la <a href="mailto:contact@atpsor.ro">contact@atpsor.ro</a>.</p>
+  ${footer()}`;
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [params.clientEmail],
+      subject: `Proforma ${params.proformaSeries} ${params.proformaNumber} - ATPSOR Transport`,
+      html,
+    });
+    console.log(`Proforma info email sent to ${params.clientEmail}`);
+  } catch (err) {
+    console.error("Failed to send proforma info email:", err);
+  }
+}
+
 // Email 3: Notificare admin la booking nou
 export async function sendBookingNotificationToAdmin(data: BookingEmailData & { transporterEmail?: string }) {
   if (!resend) return;

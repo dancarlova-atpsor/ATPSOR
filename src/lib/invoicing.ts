@@ -204,21 +204,29 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         currency: "RON",
       });
 
-      // Trimite proforma PDF atasata clientului via Resend
+      // Trimite proforma email - cu PDF daca SmartBill returneaza, fara daca nu
       if (result?.number && result?.series && params.clientEmail) {
         (async () => {
           try {
             const { getInvoicePdf } = await import("./smartbill");
-            const { sendInvoicePdfToClient } = await import("./emails");
-            // Pentru proforma, endpoint-ul SmartBill e diferit (estimate, nu invoice)
-            const pdf = await getInvoicePdf({
-              cif: params.transporterCui,
-              seriesName: result!.series!,
-              number: result!.number!,
-              authHeader: transporterAuth,
-              isProforma: true,
-            });
+            const { sendInvoicePdfToClient, sendProformaInfoEmail } = await import("./emails");
+
+            // Incearca download PDF
+            let pdf: Buffer | null = null;
+            try {
+              pdf = await getInvoicePdf({
+                cif: params.transporterCui,
+                seriesName: result!.series!,
+                number: result!.number!,
+                authHeader: transporterAuth,
+                isProforma: true,
+              });
+            } catch (e) {
+              console.error("Proforma PDF download failed:", e);
+            }
+
             if (pdf) {
+              // Cu PDF atasat
               await sendInvoicePdfToClient({
                 clientEmail: params.clientEmail,
                 clientName: params.clientName,
@@ -228,9 +236,19 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
                 isProforma: true,
                 transporterName: params.transporterName,
               });
+            } else {
+              // Fara PDF - trimite email cu detalii proforma
+              await sendProformaInfoEmail({
+                clientEmail: params.clientEmail,
+                clientName: params.clientName,
+                proformaNumber: result!.number!,
+                proformaSeries: result!.series!,
+                transporterName: params.transporterName,
+                amount: params.subtotalWithVat,
+              });
             }
           } catch (err) {
-            console.error("Send proforma PDF error:", err);
+            console.error("Send proforma email error:", err);
           }
         })();
       }
