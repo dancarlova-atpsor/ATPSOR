@@ -155,7 +155,7 @@ export async function GET(request: Request) {
       `;
 
       const { error } = await resend.emails.send({
-        from: "ATPSOR <onboarding@resend.dev>",
+        from: "ATPSOR <noreply@atpsor.ro>",
         to: [entry.companyEmail],
         subject: `ATPSOR: ${entry.docs.length} document(e) expiră în curând - ${entry.companyName}`,
         html: emailHtml,

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       </div>`;
 
     await resend.emails.send({
-      from: "ATPSOR <onboarding@resend.dev>",
+      from: "ATPSOR <noreply@atpsor.ro>",
       to: [email],
       subject: `Contul ${companyName} a fost aprobat pe ATPSOR!`,
       html,

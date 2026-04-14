@@ -5,7 +5,7 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM_EMAIL = "ATPSOR <onboarding@resend.dev>";
+const FROM_EMAIL = "ATPSOR <noreply@atpsor.ro>";
 
 function header(title: string) {
   return `

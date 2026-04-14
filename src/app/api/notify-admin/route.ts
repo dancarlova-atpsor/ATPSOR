@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     await resend.emails.send({
-      from: "ATPSOR <onboarding@resend.dev>",
+      from: "ATPSOR <noreply@atpsor.ro>",
       to: [ADMIN_EMAIL],
       subject: `Transportator nou înregistrat: ${companyName}`,
       html: `

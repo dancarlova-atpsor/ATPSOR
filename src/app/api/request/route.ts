@@ -151,7 +151,7 @@ export async function POST(request: Request) {
 
     if (resend) {
       const { error } = await resend.emails.send({
-        from: "ATPSOR <onboarding@resend.dev>",
+        from: "ATPSOR <noreply@atpsor.ro>",
         to: [NOTIFY_EMAIL],
         subject: `Cerere Transport: ${pickupCity} → ${dropoffCity} | ${passengers} pers. | ${departureDate}`,
         html: emailHtml,

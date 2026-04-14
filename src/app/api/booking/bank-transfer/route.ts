@@ -162,7 +162,7 @@ export async function POST(request: Request) {
         </div>`;
 
       await resend.emails.send({
-        from: "ATPSOR <onboarding@resend.dev>",
+        from: "ATPSOR <noreply@atpsor.ro>",
         to: [billingData.email],
         subject: `Rezervare ATPSOR - Detalii Transfer Bancar | ${route || "Transport"}`,
         html: bankDetailsHtml,
