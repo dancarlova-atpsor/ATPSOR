@@ -86,6 +86,7 @@ export default function TransporterDashboard() {
   const [profileForm, setProfileForm] = useState({
     description: "", address: "", city: "", county: "",
     phone: "", email: "", website: "",
+    iban: "", bank_name: "",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -145,6 +146,8 @@ export default function TransporterDashboard() {
         phone: comp.phone || "",
         email: comp.email || "",
         website: comp.website || "",
+        iban: comp.iban || "",
+        bank_name: comp.bank_name || "",
       });
       setLogoPreview(comp.logo_url || null);
 
@@ -377,6 +380,8 @@ export default function TransporterDashboard() {
         phone: profileForm.phone.trim(),
         email: profileForm.email.trim(),
         website: profileForm.website.trim() || null,
+        iban: profileForm.iban.trim() || null,
+        bank_name: profileForm.bank_name.trim() || null,
         logo_url: logoUrl,
       })
       .eq("id", company.id);
@@ -1561,6 +1566,37 @@ export default function TransporterDashboard() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                   placeholder="https://www.firma.ro"
                 />
+              </div>
+
+              {/* Date bancare */}
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 space-y-4">
+                <p className="text-sm font-semibold text-blue-800">Date bancare (pentru transfer bancar)</p>
+                <p className="text-xs text-blue-600">
+                  Aceste date sunt necesare pentru ca ATPSOR sa va transfere sumele primite de la clienti
+                  prin transfer bancar (dupa retinerea comisionului de 5%).
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">IBAN</label>
+                    <input
+                      type="text"
+                      value={profileForm.iban}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, iban: e.target.value.toUpperCase() }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      placeholder="RO00 BANK 0000 0000 0000 0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Banca</label>
+                    <input
+                      type="text"
+                      value={profileForm.bank_name}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, bank_name: e.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      placeholder="Ex: Banca Transilvania"
+                    />
+                  </div>
+                </div>
               </div>
 
               <button

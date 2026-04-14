@@ -142,8 +142,8 @@ export async function POST(request: Request) {
             <div style="background:white;border:2px solid #1e40af;border-radius:8px;padding:16px;">
               <table style="width:100%;border-collapse:collapse;">
                 <tr><td style="padding:6px 0;color:#6b7280;width:140px;">Beneficiar:</td><td style="padding:6px 0;font-weight:bold;">ATPSOR</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">IBAN:</td><td style="padding:6px 0;font-weight:bold;font-family:monospace;letter-spacing:1px;">RO49 AAAA 1B31 0075 9384 0000</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Banca:</td><td style="padding:6px 0;font-weight:bold;">Banca Transilvania</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">IBAN:</td><td style="padding:6px 0;font-weight:bold;font-family:monospace;letter-spacing:1px;">RO58 CECE B000 30RO N397 9534</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Banca:</td><td style="padding:6px 0;font-weight:bold;">CEC Bank</td></tr>
                 <tr><td style="padding:6px 0;color:#6b7280;">Suma:</td><td style="padding:6px 0;font-weight:bold;color:#dc2626;">${totalPrice.toFixed(2)} RON</td></tr>
                 <tr><td style="padding:6px 0;color:#6b7280;">Referinta:</td><td style="padding:6px 0;font-weight:bold;font-family:monospace;">ATPSOR-${booking.id.substring(0, 8).toUpperCase()}</td></tr>
               </table>

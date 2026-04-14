@@ -594,8 +594,8 @@ export default function RequestOffersPage() {
                         <h4 className="font-semibold text-blue-800 mb-2">Rezervare Inregistrata!</h4>
                         <p className="text-sm text-gray-600 mb-3">Detaliile pentru transfer bancar au fost trimise pe email.</p>
                         <div className="text-sm space-y-1">
-                          <div className="flex justify-between"><span className="text-gray-500">IBAN:</span><span className="font-mono font-medium">RO49 AAAA 1B31 0075 9384 0000</span></div>
-                          <div className="flex justify-between"><span className="text-gray-500">Banca:</span><span className="font-medium">Banca Transilvania</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">IBAN:</span><span className="font-mono font-medium">RO58 CECE B000 30RO N397 9534</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Banca:</span><span className="font-medium">CEC Bank</span></div>
                           <div className="flex justify-between"><span className="text-gray-500">Suma:</span><span className="font-bold text-red-600">{Math.round(totalPrice).toLocaleString()} RON</span></div>
                           <div className="flex justify-between"><span className="text-gray-500">Referinta:</span><span className="font-mono font-bold text-primary-600">{bankTransferSuccess.reference}</span></div>
                         </div>

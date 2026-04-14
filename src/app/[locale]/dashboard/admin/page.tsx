@@ -973,6 +973,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3">Preț total</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Data</th>
+                    <th className="px-4 py-3">Acțiuni</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -988,13 +989,40 @@ export default function AdminDashboard() {
                         {b.total_price} {b.currency}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">
-                          {b.status}
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          b.status === "confirmed" ? "bg-green-50 text-green-600" :
+                          b.status === "pending_payment" ? "bg-yellow-50 text-yellow-700" :
+                          "bg-gray-50 text-gray-600"
+                        }`}>
+                          {b.status === "pending_payment" ? "Astept plata" : b.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-500">
-                        {new Date(b.created_at).toLocaleDateString(
-                          "ro-RO"
+                        {new Date(b.created_at).toLocaleDateString("ro-RO")}
+                      </td>
+                      <td className="px-4 py-3">
+                        {b.status === "pending_payment" && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Confirmi primirea platii de ${b.total_price} ${b.currency}? Factura se va emite automat.`)) return;
+                              const res = await fetch("/api/booking/confirm-payment", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ bookingId: b.id }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                alert(data.message);
+                                loadData();
+                              } else {
+                                alert("Eroare: " + (data.error || "necunoscuta"));
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Confirma plata
+                          </button>
                         )}
                       </td>
                     </tr>

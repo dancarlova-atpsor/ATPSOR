@@ -252,11 +252,11 @@ export default function BookPage() {
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-500">IBAN:</span>
-                <span className="font-mono font-medium">RO49 AAAA 1B31 0075 9384 0000</span>
+                <span className="font-mono font-medium">RO58 CECE B000 30RO N397 9534</span>
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-500">Banca:</span>
-                <span className="font-medium">Banca Transilvania</span>
+                <span className="font-medium">CEC Bank</span>
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-500">Suma:</span>
