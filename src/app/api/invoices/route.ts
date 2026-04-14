@@ -32,8 +32,9 @@ export async function GET(request: Request) {
         .order("created_at", { ascending: false });
 
       // Filter: only invoices where the booking belongs to this company
+      // Transportatorul NU vede comisionul Luxuria → ATPSOR (transfer intern)
       const filtered = (invoices || []).filter(
-        (inv: any) => inv.booking?.company_id === company.id
+        (inv: any) => inv.booking?.company_id === company.id && inv.invoice_type !== "luxuria_commission"
       );
 
       return NextResponse.json({ invoices: filtered });
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
       .from("invoices")
       .select("*")
       .in("booking_id", bookingIds)
+      .eq("invoice_type", "transport") // Clientul vede doar factura de transport, nu comisioane
       .order("created_at", { ascending: false });
 
     return NextResponse.json({ invoices: invoices || [] });
