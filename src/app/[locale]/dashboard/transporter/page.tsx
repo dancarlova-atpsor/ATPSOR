@@ -872,7 +872,24 @@ export default function TransporterDashboard() {
 
       {/* Tab Content */}
       {activeTab === "requests" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Calendar disponibilitate - vizibil instant la deschiderea panoului */}
+          {vehicles.length > 0 && (
+            <div>
+              <h3 className="mb-3 text-base font-semibold text-gray-900 flex items-center gap-2">
+                <CalendarCheck className="h-5 w-5 text-primary-500" />
+                Disponibilitate flota — verifica rapid daca esti liber
+              </h3>
+              <VehicleCalendar vehicles={vehicles} blocks={vehicleBlocks} />
+            </div>
+          )}
+
+          {/* Lista cereri */}
+          <div>
+            <h3 className="mb-3 text-base font-semibold text-gray-900 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary-500" />
+              Cereri de transport disponibile
+            </h3>
           {availableRequests.length === 0 ? (
             <div className="py-12 text-center">
               <FileText className="mx-auto h-12 w-12 text-gray-300" />
@@ -934,6 +951,7 @@ export default function TransporterDashboard() {
               </div>
             ))
           )}
+          </div>
         </div>
       )}
 

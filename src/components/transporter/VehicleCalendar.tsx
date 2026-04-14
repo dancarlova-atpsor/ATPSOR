@@ -146,15 +146,12 @@ export default function VehicleCalendar({ vehicles, blocks }: VehicleCalendarPro
           const hasManual = dayBlocks.some((b) => b.reason === "manual");
           const isPast = cell.dateStr < todayStr;
 
+          const isOccupied = hasBooking || hasManual;
           let bgClass = "bg-green-50 text-green-700 hover:bg-green-100";
-          if (hasBooking && hasManual) {
-            bgClass = "bg-purple-100 text-purple-800";
-          } else if (hasBooking) {
-            bgClass = "bg-blue-100 text-blue-800";
-          } else if (hasManual) {
-            bgClass = "bg-red-100 text-red-700";
+          if (isOccupied) {
+            bgClass = "bg-red-100 text-red-700 font-bold";
           }
-          if (isPast && !hasBooking && !hasManual) {
+          if (isPast && !isOccupied) {
             bgClass = "bg-gray-50 text-gray-400";
           }
 
@@ -166,9 +163,9 @@ export default function VehicleCalendar({ vehicles, blocks }: VehicleCalendarPro
               }`}
               title={
                 dayBlocks.length > 0
-                  ? dayBlocks.map((b) => {
+                  ? "OCUPAT:\n" + dayBlocks.map((b) => {
                       const v = vehicles.find((v) => v.id === b.vehicle_id);
-                      return `${v?.name || "Vehicul"}: ${b.reason === "booking" ? "Rezervare" : "Blocat manual"}`;
+                      return `• ${v?.name || "Vehicul"} (${b.reason === "booking" ? "prin platforma" : "rezervare externa"})`;
                     }).join("\n")
                   : "Disponibil"
               }
@@ -188,19 +185,18 @@ export default function VehicleCalendar({ vehicles, blocks }: VehicleCalendarPro
       <div className="mt-4 flex flex-wrap gap-4 border-t border-gray-100 pt-3">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <div className="h-3 w-3 rounded bg-green-100" />
-          Disponibil
-        </div>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <div className="h-3 w-3 rounded bg-blue-100" />
-          Rezervat ({bookingCount})
+          Liber
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <div className="h-3 w-3 rounded bg-red-100" />
-          Blocat manual ({manualCount})
+          Ocupat ({bookingCount + manualCount})
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <div className="h-3 w-3 rounded-full ring-2 ring-primary-500" />
           Azi
+        </div>
+        <div className="ml-auto text-xs text-gray-400">
+          💡 {bookingCount} prin platforma + {manualCount} rezervari externe
         </div>
       </div>
     </div>
