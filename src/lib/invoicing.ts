@@ -149,6 +149,22 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
           authHeader: transporterAuth,
         });
         console.log(`Payment registered: ${payResult?.number || "pending"}`);
+
+        // Trimite factura pe email clientului automat
+        if (params.clientEmail) {
+          const { sendInvoiceEmail } = await import("./smartbill");
+          sendInvoiceEmail({
+            cif: params.transporterCui,
+            seriesName: result.series,
+            number: result.number,
+            to: params.clientEmail,
+            subject: `Factura ${result.series} ${result.number} - Transport ATPSOR`,
+            bodyText: `Va transmitem atasat factura ${result.series} ${result.number} pentru serviciul de transport.\n\nRuta: ${params.route}\nData: ${params.date}\n\nCu stima,\n${params.transporterName}`,
+            authHeader: transporterAuth,
+          }).then((emailResult) => {
+            console.log(`Invoice email sent: ${emailResult ? "OK" : "FAILED"}`);
+          }).catch((err) => console.error("Send invoice email error:", err));
+        }
       }
     } else {
       // Transfer bancar → Proforma (foloseste seria de proforma, nu de factura)
@@ -174,6 +190,22 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         }],
         currency: "RON",
       });
+
+      // Trimite proforma pe email clientului (pentru transfer bancar)
+      if (result?.number && result?.series && params.clientEmail) {
+        const { sendInvoiceEmail } = await import("./smartbill");
+        sendInvoiceEmail({
+          cif: params.transporterCui,
+          seriesName: result.series,
+          number: result.number,
+          to: params.clientEmail,
+          subject: `Proforma ${result.series} ${result.number} - Transport ATPSOR`,
+          bodyText: `Va transmitem atasata proforma ${result.series} ${result.number} pentru serviciul de transport.\n\nRuta: ${params.route}\nData: ${params.date}\n\nDupa primirea platii prin transfer bancar, vom emite factura fiscala.\n\nCu stima,\n${params.transporterName}`,
+          authHeader: transporterAuth,
+        }).then((emailResult) => {
+          console.log(`Proforma email sent: ${emailResult ? "OK" : "FAILED"}`);
+        }).catch((err) => console.error("Send proforma email error:", err));
+      }
     }
 
     await saveInvoice(

@@ -47,6 +47,9 @@ interface BookingEmailData {
 export async function sendBookingConfirmationToClient(data: BookingEmailData) {
   if (!resend || !data.clientEmail) return;
 
+  const acceptDate = new Date().toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const acceptTime = new Date().toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
+
   const html = `${header("ATPSOR - Confirmare Rezervare")}
     <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:16px;margin-bottom:16px;">
       <p style="margin:0;font-size:16px;font-weight:bold;color:#166534;">Rezervarea ta a fost confirmata!</p>
@@ -62,11 +65,27 @@ export async function sendBookingConfirmationToClient(data: BookingEmailData) {
       ${row("Total platit:", `${data.totalPrice.toFixed(2)} ${data.currency.toUpperCase()}`)}
     </table>
 
+    <h2 style="color:#1e40af;font-size:16px;">Contract de Transport</h2>
+    <div style="background:white;border:2px solid #1e40af;border-radius:8px;padding:16px;margin-bottom:16px;">
+      <p style="margin:0 0 8px;font-weight:bold;color:#1e40af;font-size:14px;">CONTRACT DE TRANSPORT OCAZIONAL DE PERSOANE</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tr><td style="padding:4px 0;color:#6b7280;width:130px;">Prestator:</td><td style="padding:4px 0;font-weight:bold;">${data.transporterName}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;">Beneficiar:</td><td style="padding:4px 0;font-weight:bold;">${data.clientName || "—"}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;">Traseu:</td><td style="padding:4px 0;font-weight:bold;">${data.route}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;">Data transport:</td><td style="padding:4px 0;font-weight:bold;">${data.departureDate}${data.returnDate ? ` → ${data.returnDate}` : ""}</td></tr>
+        ${data.vehicleName ? `<tr><td style="padding:4px 0;color:#6b7280;">Vehicul:</td><td style="padding:4px 0;font-weight:bold;">${data.vehicleName}</td></tr>` : ""}
+        <tr><td style="padding:4px 0;color:#6b7280;">Valoare:</td><td style="padding:4px 0;font-weight:bold;">${data.totalPrice.toFixed(2)} RON (TVA inclus)</td></tr>
+      </table>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;font-style:italic;">
+        Semnat electronic prin citire si acceptare pe platforma ATPSOR. Data acceptarii: ${acceptDate}, ${acceptTime}.
+      </div>
+    </div>
+
     <div style="margin-top:20px;padding:12px;background:#eff6ff;border-radius:6px;border:1px solid #bfdbfe;">
       <p style="margin:0;font-size:13px;color:#1d4ed8;">
         <strong>Ce urmeaza?</strong><br>
         Transportatorul va fi notificat si te va contacta pentru detaliile transportului.
-        Pastreaza acest email ca dovada a rezervarii.
+        Vei primi separat factura fiscala emisa prin SmartBill.
       </p>
     </div>
   ${footer()}`;
