@@ -322,12 +322,14 @@ export async function getInvoicePdf(params: {
   seriesName: string;
   number: string;
   authHeader?: string;
+  isProforma?: boolean;
 }): Promise<Buffer | null> {
   const auth = params.authHeader || getAuthHeader();
   if (!auth || auth === "Basic Og==") return null;
 
   try {
-    const url = `${SMARTBILL_API_URL}/invoice/pdf?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
+    const docType = params.isProforma ? "estimate" : "invoice";
+    const url = `${SMARTBILL_API_URL}/${docType}/pdf?cif=${encodeURIComponent(params.cif)}&seriesname=${encodeURIComponent(params.seriesName)}&number=${encodeURIComponent(params.number)}`;
     const res = await fetch(url, {
       method: "GET",
       headers: {

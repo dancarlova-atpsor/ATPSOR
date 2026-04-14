@@ -150,20 +150,33 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         });
         console.log(`Payment registered: ${payResult?.number || "pending"}`);
 
-        // Trimite factura pe email clientului automat
+        // Trimite factura PDF atasata clientului via Resend (mai sigur decat SmartBill email)
         if (params.clientEmail) {
-          const { sendInvoiceEmail } = await import("./smartbill");
-          sendInvoiceEmail({
-            cif: params.transporterCui,
-            seriesName: result.series,
-            number: result.number,
-            to: params.clientEmail,
-            subject: `Factura ${result.series} ${result.number} - Transport ATPSOR`,
-            bodyText: `Va transmitem atasat factura ${result.series} ${result.number} pentru serviciul de transport.\n\nRuta: ${params.route}\nData: ${params.date}\n\nCu stima,\n${params.transporterName}`,
-            authHeader: transporterAuth,
-          }).then((emailResult) => {
-            console.log(`Invoice email sent: ${emailResult ? "OK" : "FAILED"}`);
-          }).catch((err) => console.error("Send invoice email error:", err));
+          (async () => {
+            try {
+              const { getInvoicePdf } = await import("./smartbill");
+              const { sendInvoicePdfToClient } = await import("./emails");
+              const pdf = await getInvoicePdf({
+                cif: params.transporterCui,
+                seriesName: result!.series!,
+                number: result!.number!,
+                authHeader: transporterAuth,
+              });
+              if (pdf) {
+                await sendInvoicePdfToClient({
+                  clientEmail: params.clientEmail,
+                  clientName: params.clientName,
+                  invoiceNumber: result!.number!,
+                  invoiceSeries: result!.series!,
+                  pdfBuffer: pdf,
+                  isProforma: false,
+                  transporterName: params.transporterName,
+                });
+              }
+            } catch (err) {
+              console.error("Send invoice PDF error:", err);
+            }
+          })();
         }
       }
     } else {
@@ -191,20 +204,35 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         currency: "RON",
       });
 
-      // Trimite proforma pe email clientului (pentru transfer bancar)
+      // Trimite proforma PDF atasata clientului via Resend
       if (result?.number && result?.series && params.clientEmail) {
-        const { sendInvoiceEmail } = await import("./smartbill");
-        sendInvoiceEmail({
-          cif: params.transporterCui,
-          seriesName: result.series,
-          number: result.number,
-          to: params.clientEmail,
-          subject: `Proforma ${result.series} ${result.number} - Transport ATPSOR`,
-          bodyText: `Va transmitem atasata proforma ${result.series} ${result.number} pentru serviciul de transport.\n\nRuta: ${params.route}\nData: ${params.date}\n\nDupa primirea platii prin transfer bancar, vom emite factura fiscala.\n\nCu stima,\n${params.transporterName}`,
-          authHeader: transporterAuth,
-        }).then((emailResult) => {
-          console.log(`Proforma email sent: ${emailResult ? "OK" : "FAILED"}`);
-        }).catch((err) => console.error("Send proforma email error:", err));
+        (async () => {
+          try {
+            const { getInvoicePdf } = await import("./smartbill");
+            const { sendInvoicePdfToClient } = await import("./emails");
+            // Pentru proforma, endpoint-ul SmartBill e diferit (estimate, nu invoice)
+            const pdf = await getInvoicePdf({
+              cif: params.transporterCui,
+              seriesName: result!.series!,
+              number: result!.number!,
+              authHeader: transporterAuth,
+              isProforma: true,
+            });
+            if (pdf) {
+              await sendInvoicePdfToClient({
+                clientEmail: params.clientEmail,
+                clientName: params.clientName,
+                invoiceNumber: result!.number!,
+                invoiceSeries: result!.series!,
+                pdfBuffer: pdf,
+                isProforma: true,
+                transporterName: params.transporterName,
+              });
+            }
+          } catch (err) {
+            console.error("Send proforma PDF error:", err);
+          }
+        })();
       }
     }
 

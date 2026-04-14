@@ -181,6 +181,58 @@ export async function sendBookingNotificationToTransporter(data: TransporterNoti
   }
 }
 
+// Email 4: Trimite factura PDF atasata la client (via Resend, nu SmartBill)
+export async function sendInvoicePdfToClient(params: {
+  clientEmail: string;
+  clientName: string;
+  invoiceNumber: string;
+  invoiceSeries: string;
+  pdfBuffer: Buffer;
+  isProforma?: boolean;
+  transporterName: string;
+}) {
+  if (!resend || !params.clientEmail) return;
+
+  const docType = params.isProforma ? "Proforma" : "Factura";
+  const filename = `${docType.toLowerCase()}_${params.invoiceSeries}_${params.invoiceNumber}.pdf`;
+
+  const html = `${header(`ATPSOR - ${docType} ${params.invoiceSeries} ${params.invoiceNumber}`)}
+    <p>Buna ziua${params.clientName ? `, ${params.clientName}` : ""},</p>
+    <p>Va transmitem atasat <strong>${docType.toLowerCase()}a ${params.invoiceSeries} ${params.invoiceNumber}</strong> emisa de <strong>${params.transporterName}</strong> prin platforma ATPSOR.</p>
+    ${params.isProforma ? `
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;margin:12px 0;">
+        <p style="margin:0;font-size:13px;color:#92400e;">
+          <strong>Important:</strong> Aceasta este o proforma. Dupa primirea platii prin transfer bancar,
+          se va emite factura fiscala in conformitate cu legea.
+        </p>
+      </div>
+    ` : `
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:12px;margin:12px 0;">
+        <p style="margin:0;font-size:13px;color:#166534;">
+          <strong>Plata a fost incasata cu succes.</strong> Factura este marcata ca incasata in sistemul SmartBill.
+        </p>
+      </div>
+    `}
+    <p style="font-size:13px;color:#6b7280;">Pastrati acest document ca dovada a tranzactiei. Pentru intrebari, contactati-ne la <a href="mailto:contact@atpsor.ro">contact@atpsor.ro</a>.</p>
+  ${footer()}`;
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [params.clientEmail],
+      subject: `${docType} ${params.invoiceSeries} ${params.invoiceNumber} - ATPSOR Transport`,
+      html,
+      attachments: [{
+        filename,
+        content: params.pdfBuffer.toString("base64"),
+      }],
+    });
+    console.log(`${docType} PDF sent to ${params.clientEmail}`);
+  } catch (err) {
+    console.error(`Failed to send ${docType} PDF email:`, err);
+  }
+}
+
 // Email 3: Notificare admin la booking nou
 export async function sendBookingNotificationToAdmin(data: BookingEmailData & { transporterEmail?: string }) {
   if (!resend) return;
