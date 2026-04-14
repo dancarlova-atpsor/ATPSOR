@@ -176,7 +176,7 @@ export default function ContractComisionPage() {
             </p>
             <p className="mt-2">
               <strong>7.4.</strong> Prețul final include: tariful transportatorului + TVA 21% +
-              comision platformă 5%. Minimul facturabil este de 200 km/zi.
+              comision platformă 5%. Fiecare transportator stabilește propriul minim facturabil de km/zi din profilul său.
             </p>
           </div>
 

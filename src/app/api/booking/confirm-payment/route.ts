@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServerClient } from "@supabase/ssr";
 import { generateAllInvoices } from "@/lib/invoicing";
-import { sendBookingConfirmationToClient } from "@/lib/emails";
+import { sendBookingConfirmationToClient, sendBookingNotificationToTransporter, sendBookingNotificationToAdmin } from "@/lib/emails";
 
 function createServiceClient() {
   return createServerClient(
@@ -91,18 +91,22 @@ export async function POST(request: Request) {
       }).catch((err) => console.error("Invoice generation error:", err));
     }
 
-    // Send confirmation email to client
-    if (clientEmail) {
-      sendBookingConfirmationToClient({
-        route: "Transport confirmat",
-        departureDate: "",
-        transporterName: comp?.name || "",
-        totalPrice,
-        currency: booking.currency || "ron",
-        clientName,
-        clientEmail,
-      }).catch((err) => console.error("Email error:", err));
-    }
+    // Send confirmation emails to all parties
+    const emailData = {
+      route: "Transport confirmat",
+      departureDate: "",
+      transporterName: comp?.name || "",
+      totalPrice,
+      currency: booking.currency || "ron",
+      clientName,
+      clientEmail,
+    };
+
+    Promise.allSettled([
+      clientEmail ? sendBookingConfirmationToClient(emailData) : null,
+      comp?.email ? sendBookingNotificationToTransporter({ ...emailData, transporterEmail: comp.email }) : null,
+      sendBookingNotificationToAdmin(emailData),
+    ].filter(Boolean)).catch((err) => console.error("Email error:", err));
 
     return NextResponse.json({
       success: true,
