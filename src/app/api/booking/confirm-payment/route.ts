@@ -100,6 +100,7 @@ export async function POST(request: Request) {
       currency: booking.currency || "ron",
       clientName,
       clientEmail,
+      bookingId: booking.id,
     };
 
     Promise.allSettled([

@@ -49,6 +49,7 @@ async function sendBookingEmails(params: {
   vehicleName?: string;
   totalPrice: number;
   currency: string;
+  bookingId?: string;
 }) {
   const promises: Promise<void>[] = [];
 
@@ -158,6 +159,7 @@ export async function POST(request: Request) {
           vehicleName,
           totalPrice,
           currency,
+          bookingId: booking.id,
         }).catch((err) => console.error("Email notification error:", err));
 
         // Generate SmartBill invoices (fire-and-forget)
@@ -264,6 +266,7 @@ export async function POST(request: Request) {
             vehicleName,
             totalPrice,
             currency,
+            bookingId: booking.id,
           }).catch((err) => console.error("Email notification error:", err));
 
           // Generate SmartBill invoices (fire-and-forget)

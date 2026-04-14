@@ -41,6 +41,7 @@ interface BookingEmailData {
   clientName: string;
   clientEmail: string;
   stripeSessionId?: string;
+  bookingId?: string;
 }
 
 // Email 1: Confirmare booking catre client
@@ -80,6 +81,18 @@ export async function sendBookingConfirmationToClient(data: BookingEmailData) {
         Semnat electronic prin citire si acceptare pe platforma ATPSOR. Data acceptarii: ${acceptDate}, ${acceptTime}.
       </div>
     </div>
+
+    ${data.bookingId ? `
+    <div style="margin-top:16px;text-align:center;">
+      <a href="https://atpsor.ro/ro/contract/${data.bookingId}"
+         style="display:inline-block;background:#1e40af;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">
+        Vezi/Descarca Contractul (PDF)
+      </a>
+      <p style="margin:8px 0 0;font-size:12px;color:#6b7280;">
+        Apasa pe link, apoi pe butonul "Tipareste / Salveaza PDF" din pagina deschisa
+      </p>
+    </div>
+    ` : ""}
 
     <div style="margin-top:20px;padding:12px;background:#eff6ff;border-radius:6px;border:1px solid #bfdbfe;">
       <p style="margin:0;font-size:13px;color:#1d4ed8;">
