@@ -92,14 +92,16 @@ export async function POST(request: Request) {
         .single();
 
       if (comp?.smartbill_username && comp?.smartbill_token) {
+        const subtotalWithVat = totalPrice * 0.95; // 95% transport (fara comision)
+        const subtotalNoVat = subtotalWithVat / 1.21; // fara TVA
         generateAllInvoices({
           bookingId: booking.id,
-          subtotalWithVat: totalPrice * 0.95, // 95% transport
-          platformFee: totalPrice * 0.05,     // 5% comision
+          subtotalWithVat,
+          platformFee: totalPrice * 0.05,
           route: route || "N/A",
           date: departureDate || "",
-          totalKm: 0,
-          pricePerKm: 0,
+          totalKm: 1, // 1 unitate (forfetar)
+          pricePerKm: subtotalNoVat, // toata suma ca pret unitar fara TVA
           transporterName: comp.name || transporterName || "",
           transporterCui: comp.cui || "",
           transporterEmail: comp.email || transporterEmail || "",
