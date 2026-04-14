@@ -68,16 +68,21 @@ export async function POST(request: Request) {
     const clientName = notesParts[1] || "";
     const clientEmail = notesParts[2] || "";
 
-    // Convert proforma to factura + mark as paid
+    // Sterge proforma existenta din DB ca sa se poata emite factura noua
+    await serviceClient.from("invoices").delete().eq("booking_id", booking.id);
+
+    // Emite factura fiscala (din proforma) + marcheaza incasata + factura comision
     if (comp?.smartbill_username && comp?.smartbill_token) {
+      const subtotalWithVat = totalPrice * 0.95;
+      const subtotalNoVat = subtotalWithVat / 1.21;
       generateAllInvoices({
         bookingId: booking.id,
-        subtotalWithVat: totalPrice * 0.95,
+        subtotalWithVat,
         platformFee: totalPrice * 0.05,
         route: "Transport",
         date: new Date().toISOString().split("T")[0],
-        totalKm: 0,
-        pricePerKm: 0,
+        totalKm: 1,
+        pricePerKm: subtotalNoVat,
         transporterName: comp.name || "",
         transporterCui: comp.cui || "",
         transporterEmail: comp.email || "",
@@ -87,7 +92,7 @@ export async function POST(request: Request) {
         transporterSmartBillToken: comp.smartbill_token,
         clientName,
         clientEmail,
-        paymentMethod: "card", // trateaza ca plata confirmata, emite factura incasata
+        paymentMethod: "card", // emite factura incasata + comision
       }).catch((err) => console.error("Invoice generation error:", err));
     }
 
