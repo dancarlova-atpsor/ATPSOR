@@ -827,11 +827,15 @@ export function RequestTransportForm() {
               transporterName={selected.companyName}
               transporterCui={selected.companyCui}
               clientName={clientName}
+              clientEmail={clientEmail}
               route={`${pickupCity} → ${dropoffCity}`}
+              pickupCity={pickupCity}
+              dropoffCity={dropoffCity}
               departureDate={departureDate}
               returnDate={isRoundTrip ? returnDate : null}
               vehicleName={selected.vehicleName}
               vehicleSeats={selected.vehicleSeats}
+              vehicleCategory={selected.vehicleCategory}
               totalPrice={selected.estimatedPrice}
               contractUrl={selected.companyContractUrl}
               contractName={selected.companyContractName}

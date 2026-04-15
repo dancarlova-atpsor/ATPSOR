@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { VEHICLE_CATEGORIES, ROMANIAN_COUNTIES } from "@/types/database";
 import type { TransportRequest, Offer, Company, Vehicle } from "@/types/database";
+import ContractPreview from "@/components/contract/ContractPreview";
 
 const PLATFORM_FEE_PERCENT = 5; // 5% comision ATPSOR inclus in pret
 const TVA_PERCENT = 21; // TVA Romania
@@ -620,19 +621,31 @@ export default function RequestOffersPage() {
                       </label>
                     </div>
 
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <label className="flex cursor-pointer items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={isContractAccepted}
-                          onChange={() => toggleContract(offer.id)}
-                          className="mt-0.5 h-5 w-5 rounded border-gray-300 text-primary-500 focus:ring-primary-200"
-                        />
-                        <span className="text-sm text-gray-700">
-                          Am citit si accept <strong>contractul de transport</strong> al {offer.company.name} si{" "}
-                          <a href="/ro/terms" target="_blank" className="text-primary-500 underline hover:text-primary-600">Termenii si Conditiile ATPSOR</a>
-                        </span>
-                      </label>
+                    {/* Contract preview complet (11 sectiuni + Anexa 1) */}
+                    <div className="mb-4">
+                      <ContractPreview
+                        transporterName={offer.company.name}
+                        transporterCui={offer.company.cui}
+                        clientName={`${billingFirstName} ${billingLastName}`.trim()}
+                        clientEmail={(request as TransportRequest & { client_email?: string })?.client_email || ""}
+                        clientAddress={billingStreet && billingCity ? `${billingStreet} nr. ${billingNumber}, ${billingCity}, ${billingCounty}` : ""}
+                        route={`${request?.pickup_city} → ${request?.dropoff_city}`}
+                        pickupCity={request?.pickup_city}
+                        dropoffCity={request?.dropoff_city}
+                        departureDate={request?.departure_date || ""}
+                        returnDate={request?.return_date}
+                        vehicleName={offer.vehicle?.name}
+                        vehicleSeats={offer.vehicle?.seats}
+                        vehicleCategory={offer.vehicle?.category}
+                        totalPrice={totalPrice}
+                        contractUrl={(offer.company as any).contract_template_url || null}
+                        contractName={(offer.company as any).contract_template_name || null}
+                        accepted={isContractAccepted}
+                        onToggle={() => toggleContract(offer.id)}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
                       <button
                         onClick={() => handlePayment(offer.id, totalPrice, offer)}
                         disabled={!isContractAccepted || isProcessing || !billingFirstName || !billingLastName || !billingStreet || !billingNumber || !billingCity || !billingCounty}

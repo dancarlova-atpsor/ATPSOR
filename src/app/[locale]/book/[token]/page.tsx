@@ -493,11 +493,16 @@ export default function BookPage() {
               transporterName={bookingLink.companies?.name || ""}
               transporterCui={bookingLink.companies?.cui}
               clientName={billingName}
+              clientEmail={billingEmail}
+              clientAddress={billingAddress}
               route={`${bookingLink.pickup_city} → ${bookingLink.dropoff_city}`}
+              pickupCity={bookingLink.pickup_city}
+              dropoffCity={bookingLink.dropoff_city}
               departureDate={bookingLink.departure_date}
               returnDate={bookingLink.return_date}
               vehicleName={bookingLink.vehicles?.name}
               vehicleSeats={bookingLink.vehicles?.seats}
+              vehicleCategory={(bookingLink.vehicles as any)?.category}
               totalPrice={bookingLink.total_price}
               accepted={contractAccepted}
               onToggle={() => setContractAccepted((v) => !v)}
