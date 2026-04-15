@@ -31,6 +31,7 @@ export default function AdminCompanyDetailsPage() {
   const [vehicleDocs, setVehicleDocs] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any[]>([]);
+  const [viewingDoc, setViewingDoc] = useState<{ url: string; name: string; type: string } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -212,9 +213,9 @@ export default function AdminCompanyDetailsPage() {
                   </div>
                   <div className="flex gap-2">
                     {d.file_url && (
-                      <a href={d.file_url} target="_blank" rel="noreferrer" className="rounded-lg bg-blue-50 p-2 text-blue-600 hover:bg-blue-100" title="Vezi">
+                      <button onClick={() => setViewingDoc({ url: d.file_url, name: d.file_name || DOC_LABELS[d.document_type] || "document", type: d.document_type })} className="rounded-lg bg-blue-50 p-2 text-blue-600 hover:bg-blue-100" title="Vezi">
                         <Eye className="h-4 w-4" />
-                      </a>
+                      </button>
                     )}
                     {d.file_url && (
                       <a href={d.file_url} download className="rounded-lg bg-gray-50 p-2 text-gray-600 hover:bg-gray-100" title="Descarcă">
@@ -281,7 +282,7 @@ export default function AdminCompanyDetailsPage() {
                             </div>
                             <div className="flex gap-1">
                               {d.file_url && (
-                                <a href={d.file_url} target="_blank" rel="noreferrer" className="rounded bg-blue-50 p-1 text-blue-600 hover:bg-blue-100"><Eye className="h-3.5 w-3.5" /></a>
+                                <button onClick={() => setViewingDoc({ url: d.file_url, name: d.file_name || DOC_LABELS[d.document_type] || "document", type: d.document_type })} className="rounded bg-blue-50 p-1 text-blue-600 hover:bg-blue-100"><Eye className="h-3.5 w-3.5" /></button>
                               )}
                               {d.is_verified ? (
                                 <button onClick={() => unverifyDocument("vehicle_documents", d.id)} className="rounded bg-green-600 px-2 py-0.5 text-xs font-medium text-white">✓</button>
@@ -348,6 +349,69 @@ export default function AdminCompanyDetailsPage() {
           </div>
         )}
       </div>
+
+      {/* Document viewer modal */}
+      {viewingDoc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setViewingDoc(null)}
+        >
+          <div
+            className="flex h-full max-h-[90vh] w-full max-w-5xl flex-col rounded-xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                <FileText className="h-5 w-5 text-purple-500" />
+                {viewingDoc.name}
+              </h3>
+              <div className="flex gap-2">
+                <a
+                  href={viewingDoc.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-100"
+                >
+                  <Eye className="h-4 w-4" />
+                  Tab nou
+                </a>
+                <a
+                  href={viewingDoc.url}
+                  download
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <Download className="h-4 w-4" />
+                  Descarcă
+                </a>
+                <button
+                  onClick={() => setViewingDoc(null)}
+                  className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-100"
+                >
+                  ✕ Închide
+                </button>
+              </div>
+            </div>
+
+            {/* Modal content - embed PDF or image */}
+            <div className="flex-1 overflow-auto bg-gray-100">
+              {/\.(jpg|jpeg|png|gif|webp)$/i.test(viewingDoc.url) ? (
+                <img
+                  src={viewingDoc.url}
+                  alt={viewingDoc.name}
+                  className="mx-auto max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <iframe
+                  src={viewingDoc.url}
+                  className="h-full w-full border-0"
+                  title={viewingDoc.name}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
