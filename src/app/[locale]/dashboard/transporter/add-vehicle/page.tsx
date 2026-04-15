@@ -21,6 +21,7 @@ import {
   type VehicleDocumentType,
 } from "@/types/documents";
 import { uploadFile } from "@/lib/supabase/storage";
+import { createClient } from "@/lib/supabase/client";
 
 interface UploadedPhoto {
   file: File;
@@ -53,6 +54,7 @@ export default function AddVehiclePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const seatsNum = parseInt(seats) || 0;
   const requiredDocs = seatsNum > 0 ? getRequiredVehicleDocuments(seatsNum) : [];
@@ -102,30 +104,88 @@ export default function AddVehiclePage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setErrorMsg("");
 
     try {
+      const supabase = createClient();
+
+      // Get current user + company
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setErrorMsg("Trebuie sa fii autentificat."); setSaving(false); return; }
+
+      const { data: company, error: compErr } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("owner_id", user.id)
+        .single();
+
+      if (compErr || !company) {
+        setErrorMsg("Nu ai o companie inregistrata. Creeaza-ti compania inainte.");
+        setSaving(false);
+        return;
+      }
+
       // Upload photos
+      setUploadProgress("Se incarca pozele...");
       const photoUrls: string[] = [];
       for (let i = 0; i < photos.length; i++) {
-        setUploadProgress(`Se încarcă poza ${i + 1} din ${photos.length}...`);
-        const result = await uploadFile(photos[i].file, `vehicule/${Date.now()}`);
+        setUploadProgress(`Se incarca poza ${i + 1} din ${photos.length}...`);
+        const result = await uploadFile(photos[i].file, `vehicule/${company.id}`);
         if (result) photoUrls.push(result.url);
       }
 
-      // Upload documents
+      // INSERT vehicle
+      setUploadProgress("Se salveaza vehiculul...");
+      const { data: vehicle, error: vehicleErr } = await supabase
+        .from("vehicles")
+        .insert({
+          company_id: company.id,
+          name,
+          category,
+          seats: parseInt(seats) || 0,
+          brand,
+          model,
+          year: parseInt(year) || new Date().getFullYear(),
+          features,
+          photos: photoUrls,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (vehicleErr || !vehicle) {
+        setErrorMsg(`Eroare salvare vehicul: ${vehicleErr?.message || "necunoscuta"}`);
+        setSaving(false);
+        return;
+      }
+
+      // Upload + INSERT documents for this vehicle
       for (const [docType, doc] of Object.entries(documents)) {
-        if (doc.file) {
-          setUploadProgress(`Se încarcă ${docType}...`);
-          await uploadFile(doc.file, `documente/${Date.now()}`);
+        if (doc.file && doc.expiryDate) {
+          setUploadProgress(`Se incarca ${docType}...`);
+          const result = await uploadFile(doc.file, `documente/${vehicle.id}`);
+          if (result) {
+            const { error: docErr } = await supabase.from("vehicle_documents").insert({
+              vehicle_id: vehicle.id,
+              company_id: company.id,
+              document_type: docType,
+              file_url: result.url,
+              file_name: doc.file.name,
+              expiry_date: doc.expiryDate,
+            });
+            if (docErr) {
+              console.error(`Document ${docType} insert error:`, docErr);
+              // Continua cu celelalte, nu oprim tot fluxul
+            }
+          }
         }
       }
 
       setUploadProgress("");
       setSaved(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Save error:", err);
-      // Demo fallback
-      setSaved(true);
+      setErrorMsg(`Eroare la salvare: ${err?.message || "necunoscuta"}`);
     } finally {
       setSaving(false);
     }
@@ -446,6 +506,13 @@ export default function AddVehiclePage() {
             </div>
           )}
         </div>
+
+        {/* Error message */}
+        {errorMsg && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+            <strong>Eroare:</strong> {errorMsg}
+          </div>
+        )}
 
         {/* Save */}
         <div className="flex justify-end gap-3">
