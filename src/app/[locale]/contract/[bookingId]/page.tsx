@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Printer, Loader2, FileSignature } from "lucide-react";
 
 interface BookingData {
@@ -35,21 +34,14 @@ export default function ContractPage() {
 
   useEffect(() => {
     async function fetchBooking() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("bookings")
-        .select(`
-          *,
-          company:companies(name, cui, address, city, county),
-          vehicle:vehicles(name, seats),
-          offer:offers(
-            request:transport_requests(pickup_city, dropoff_city, departure_date, return_date),
-            vehicle:vehicles(name, seats)
-          )
-        `)
-        .eq("id", bookingId)
-        .single();
-      setBooking(data as BookingData | null);
+      try {
+        const res = await fetch(`/api/booking/contract?id=${bookingId}`);
+        if (!res.ok) { setLoading(false); return; }
+        const { booking: data } = await res.json();
+        setBooking(data as BookingData | null);
+      } catch {
+        setBooking(null);
+      }
       setLoading(false);
     }
     fetchBooking();
