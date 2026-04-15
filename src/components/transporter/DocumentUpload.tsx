@@ -53,10 +53,11 @@ export function DocumentUpload({
 
       const supabase = createClient();
 
+      let dbError: any = null;
       if (vehicleId) {
         // Vehicle document
         if (existingDoc) {
-          await supabase
+          const { error } = await supabase
             .from("vehicle_documents")
             .update({
               file_url: result.url,
@@ -65,8 +66,9 @@ export function DocumentUpload({
               is_verified: false,
             })
             .eq("id", existingDoc.id);
+          dbError = error;
         } else {
-          await supabase.from("vehicle_documents").insert({
+          const { error } = await supabase.from("vehicle_documents").insert({
             vehicle_id: vehicleId,
             company_id: companyId,
             document_type: documentType,
@@ -74,11 +76,12 @@ export function DocumentUpload({
             file_name: file.name,
             expiry_date: expiryDate,
           });
+          dbError = error;
         }
       } else {
         // Company document
         if (existingDoc) {
-          await supabase
+          const { error } = await supabase
             .from("company_documents")
             .update({
               file_url: result.url,
@@ -87,22 +90,31 @@ export function DocumentUpload({
               is_verified: false,
             })
             .eq("id", existingDoc.id);
+          dbError = error;
         } else {
-          await supabase.from("company_documents").insert({
+          const { error } = await supabase.from("company_documents").insert({
             company_id: companyId,
             document_type: documentType,
             file_url: result.url,
             file_name: file.name,
             expiry_date: expiryDate,
           });
+          dbError = error;
         }
+      }
+
+      if (dbError) {
+        console.error("DB error:", dbError);
+        alert(`Eroare salvare document: ${dbError.message}\n\nContactati administratorul.`);
+        setUploading(false);
+        return;
       }
 
       setShowForm(false);
       onUploaded?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload error:", err);
-      alert("Eroare la salvare document.");
+      alert(`Eroare la salvare document: ${err?.message || "necunoscuta"}`);
     }
     setUploading(false);
   }
