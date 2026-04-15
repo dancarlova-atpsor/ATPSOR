@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { useState, useEffect } from "react";
 import {
   Users,
@@ -738,6 +738,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/dashboard/admin/company/${c.id}` as any}
+                        className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700"
+                      >
+                        Vezi detalii
+                      </Link>
                       {!c.is_approved && (
                         <button onClick={() => approveCompany(c.id)}
                           className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
