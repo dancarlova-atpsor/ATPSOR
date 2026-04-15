@@ -62,11 +62,17 @@ export async function POST(request: Request) {
 
     const comp = booking.company as any;
     const totalPrice = Number(booking.total_price);
+    const bookingAny = booking as any;
 
-    // Parse notes to get billing info (stored as: "Transfer bancar | name | email")
+    // Prioritate: coloane direct pe booking (noi), fallback la notes
     const notesParts = (booking.notes || "").split(" | ");
-    const clientName = notesParts[1] || "";
-    const clientEmail = notesParts[2] || "";
+    const clientName = bookingAny.client_name || notesParts[1] || "";
+    const clientEmail = bookingAny.client_email || notesParts[2] || "";
+    const clientAddress = bookingAny.client_address || "";
+    const pickupCity = bookingAny.pickup_city || "";
+    const dropoffCity = bookingAny.dropoff_city || "";
+    const bookingRoute = pickupCity && dropoffCity ? `${pickupCity} → ${dropoffCity}` : "Transport";
+    const bookingDate = bookingAny.departure_date || new Date().toISOString().split("T")[0];
 
     // Sterge proforma existenta din DB ca sa se poata emite factura noua
     await serviceClient.from("invoices").delete().eq("booking_id", booking.id);
@@ -79,8 +85,8 @@ export async function POST(request: Request) {
         bookingId: booking.id,
         subtotalWithVat,
         platformFee: totalPrice * 0.05,
-        route: "Transport",
-        date: new Date().toISOString().split("T")[0],
+        route: bookingRoute,
+        date: bookingDate,
         totalKm: 1,
         pricePerKm: subtotalNoVat,
         transporterName: comp.name || "",
@@ -92,14 +98,16 @@ export async function POST(request: Request) {
         transporterSmartBillToken: comp.smartbill_token,
         clientName,
         clientEmail,
+        clientAddress,
         paymentMethod: "card", // emite factura incasata + comision
       }).catch((err) => console.error("Invoice generation error:", err));
     }
 
     // Send confirmation emails to all parties
     const emailData = {
-      route: "Transport confirmat",
-      departureDate: "",
+      route: bookingRoute,
+      departureDate: bookingDate,
+      returnDate: bookingAny.return_date || undefined,
       transporterName: comp?.name || "",
       totalPrice,
       currency: booking.currency || "ron",

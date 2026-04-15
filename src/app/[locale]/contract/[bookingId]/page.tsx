@@ -11,10 +11,19 @@ interface BookingData {
   currency: string;
   created_at: string;
   notes: string | null;
+  // Date contract direct pe booking
+  pickup_city: string | null;
+  dropoff_city: string | null;
+  departure_date: string | null;
+  return_date: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  client_address: string | null;
   company: { name: string; cui: string; address: string; city: string; county: string } | null;
+  vehicle: { name: string; seats: number } | null;
   offer: {
-    request: { pickup_city: string; dropoff_city: string; departure_date: string; return_date: string | null };
-    vehicle: { name: string; seats: number };
+    request: { pickup_city: string; dropoff_city: string; departure_date: string; return_date: string | null } | null;
+    vehicle: { name: string; seats: number } | null;
   } | null;
 }
 
@@ -32,6 +41,7 @@ export default function ContractPage() {
         .select(`
           *,
           company:companies(name, cui, address, city, county),
+          vehicle:vehicles(name, seats),
           offer:offers(
             request:transport_requests(pickup_city, dropoff_city, departure_date, return_date),
             vehicle:vehicles(name, seats)
@@ -61,17 +71,22 @@ export default function ContractPage() {
     );
   }
 
-  // Parse client info from notes (format: "Transfer bancar | name | email" or empty for card)
+  // Parse client info - prioritate coloane direct pe booking, fallback notes
   const notesParts = (booking.notes || "").split(" | ");
-  const clientName = notesParts[1] || "Client";
+  const clientName = booking.client_name || notesParts[1] || "Client";
+  const clientEmail = booking.client_email || notesParts[2] || "";
+  const clientAddress = booking.client_address || "";
 
-  const route = booking.offer?.request
-    ? `${booking.offer.request.pickup_city} → ${booking.offer.request.dropoff_city}`
-    : "Transport";
-  const departureDate = booking.offer?.request?.departure_date || "";
-  const returnDate = booking.offer?.request?.return_date;
-  const vehicleName = booking.offer?.vehicle?.name;
-  const vehicleSeats = booking.offer?.vehicle?.seats;
+  // Date ruta - prioritate coloane direct pe booking, fallback la offer.request
+  const pickupCity = booking.pickup_city || booking.offer?.request?.pickup_city || "";
+  const dropoffCity = booking.dropoff_city || booking.offer?.request?.dropoff_city || "";
+  const route = pickupCity && dropoffCity ? `${pickupCity} → ${dropoffCity}` : "Transport";
+  const departureDate = booking.departure_date || booking.offer?.request?.departure_date || "";
+  const returnDate = booking.return_date || booking.offer?.request?.return_date;
+
+  // Vehicul - prioritate direct pe booking, fallback la offer.vehicle
+  const vehicleName = booking.vehicle?.name || booking.offer?.vehicle?.name;
+  const vehicleSeats = booking.vehicle?.seats || booking.offer?.vehicle?.seats;
   const created = new Date(booking.created_at);
   const acceptDate = created.toLocaleDateString("ro-RO");
   const acceptTime = created.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });

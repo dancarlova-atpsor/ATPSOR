@@ -116,7 +116,12 @@ export async function POST(request: Request) {
         booking_reference: session.id,
       });
 
-      // Create booking record
+      // Parse route for contract data
+      const routeParts = (meta.route || "").split(/\s*→\s*|\s*->\s*/);
+      const pickupCityMeta = routeParts[0]?.trim() || null;
+      const dropoffCityMeta = routeParts[1]?.trim() || null;
+
+      // Create booking record cu date contract
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
         .insert({
@@ -127,6 +132,15 @@ export async function POST(request: Request) {
           currency,
           status: "confirmed",
           notes: requestId ? `request:${requestId}` : null,
+          // Date contract
+          pickup_city: pickupCityMeta,
+          dropoff_city: dropoffCityMeta,
+          departure_date: departureDate || null,
+          return_date: returnDate || null,
+          vehicle_id: vehicleId || null,
+          client_name: meta.billing_name || null,
+          client_email: meta.billing_email || null,
+          client_address: meta.billing_address || null,
         })
         .select()
         .single();
@@ -227,6 +241,15 @@ export async function POST(request: Request) {
             total_price: totalPrice,
             currency,
             status: "confirmed",
+            // Date contract (pentru offer flow)
+            pickup_city: req?.pickup_city || null,
+            dropoff_city: req?.dropoff_city || null,
+            departure_date: req?.departure_date || null,
+            return_date: req?.return_date || null,
+            vehicle_id: offer.vehicle_id || null,
+            client_name: meta.billing_name || null,
+            client_email: meta.billing_email || null,
+            client_address: meta.billing_address || null,
           })
           .select()
           .single();

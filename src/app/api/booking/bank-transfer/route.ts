@@ -35,7 +35,12 @@ export async function POST(request: Request) {
 
     const serviceClient = createServiceClient();
 
-    // Create booking with status pending_payment
+    // Parse route to extract cities
+    const routeParts = (route || "").split(/\s*→\s*|\s*->\s*/);
+    const pickupCity = routeParts[0]?.trim() || null;
+    const dropoffCity = routeParts[1]?.trim() || null;
+
+    // Create booking with status pending_payment + date contract
     const { data: booking, error: bookingError } = await serviceClient
       .from("bookings")
       .insert({
@@ -46,6 +51,15 @@ export async function POST(request: Request) {
         currency,
         status: "pending_payment",
         notes: `Transfer bancar | ${billingData.name} | ${billingData.email}`,
+        // Date contract (pentru fluxul direct fara oferta)
+        pickup_city: pickupCity,
+        dropoff_city: dropoffCity,
+        departure_date: departureDate || null,
+        return_date: returnDate || null,
+        vehicle_id: vehicleId || null,
+        client_name: billingData.name || null,
+        client_email: billingData.email || null,
+        client_address: billingData.address || null,
       })
       .select()
       .single();
