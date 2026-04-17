@@ -619,20 +619,20 @@ export default function AdminDashboard() {
               <tr>
                 <th className="px-4 py-3">Nume</th>
                 <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Telefon</th>
                 <th className="px-4 py-3">Rol</th>
+                <th className="px-4 py-3">Companie</th>
+                <th className="px-4 py-3">Status verificare</th>
                 <th className="px-4 py-3">Înregistrat</th>
                 <th className="px-4 py-3">Acțiuni</th>
               </tr>
             </thead>
             <tbody>
-              {profiles.map((p) => (
+              {profiles.map((p) => {
+                const userCompany = companies.find((c: any) => c.owner_id === p.id);
+                return (
                 <tr key={p.id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{p.full_name}</td>
                   <td className="px-4 py-3 text-gray-500">{p.email}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {p.phone || "-"}
-                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -646,24 +646,63 @@ export default function AdminDashboard() {
                       {p.role}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">
+                  <td className="px-4 py-3">
+                    {p.role === "transporter" ? (
+                      userCompany ? (
+                        <a href={`/ro/dashboard/admin/company/${userCompany.id}`} className="text-blue-600 hover:underline font-medium">
+                          {userCompany.name}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-orange-500 italic">Fara companie inregistrata</span>
+                      )
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.role === "transporter" && userCompany ? (
+                      userCompany.is_verified ? (
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">✓ Verificat</span>
+                      ) : userCompany.is_approved ? (
+                        <span className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700">Aprobat, de verificat docs</span>
+                      ) : (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Neaprobat</span>
+                      )
+                    ) : p.role === "transporter" ? (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">Necompletat onboarding</span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">
                     {new Date(p.created_at).toLocaleDateString("ro-RO")}
                   </td>
                   <td className="px-4 py-3">
-                    <select
-                      value={p.role}
-                      onChange={(e) =>
-                        updateProfileRole(p.id, e.target.value)
-                      }
-                      className="rounded border border-gray-300 px-2 py-1 text-xs"
-                    >
-                      <option value="client">Client</option>
-                      <option value="transporter">Transportator</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                      {p.role === "transporter" && userCompany && (
+                        <a
+                          href={`/ro/dashboard/admin/company/${userCompany.id}`}
+                          className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          Verifica
+                        </a>
+                      )}
+                      <select
+                        value={p.role}
+                        onChange={(e) =>
+                          updateProfileRole(p.id, e.target.value)
+                        }
+                        className="rounded border border-gray-300 px-2 py-1 text-xs"
+                      >
+                        <option value="client">Client</option>
+                        <option value="transporter">Transportator</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
           {profiles.length === 0 && (
