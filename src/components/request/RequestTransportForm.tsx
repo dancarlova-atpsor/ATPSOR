@@ -154,6 +154,13 @@ export function RequestTransportForm() {
     });
   }, []);
 
+  // Auto-activeaza dus-intors daca userul pune data retur diferita de plecare
+  useEffect(() => {
+    if (returnDate && returnDate > departureDate && !isRoundTrip) {
+      setIsRoundTrip(true);
+    }
+  }, [returnDate, departureDate, isRoundTrip]);
+
   const dayCount = useMemo(
     () => getDayCount(departureDate, isRoundTrip ? returnDate : null),
     [departureDate, returnDate, isRoundTrip]
@@ -164,10 +171,15 @@ export function RequestTransportForm() {
     setLoadingTransporters(true);
     setStep(2);
 
+    // Auto-detect dus-întors: dacă returnDate > departureDate, tratăm ca round trip
+    // indiferent dacă utilizatorul a bifat checkbox-ul sau nu.
+    // (autocarul trebuie să se întoarcă oricum)
+    const effectiveRoundTrip = isRoundTrip || (!!returnDate && returnDate > departureDate);
+
     try {
       const supabase = createClient();
       const minSeats = parseInt(passengers) || 1;
-      const endDate = isRoundTrip && returnDate ? returnDate : departureDate;
+      const endDate = effectiveRoundTrip && returnDate ? returnDate : departureDate;
 
       // Get blocked vehicle IDs for the selected date range (overlap check)
       const { data: blocks } = await supabase
@@ -186,7 +198,7 @@ export function RequestTransportForm() {
       waypointsDus.push(dropoffCity);
 
       let waypointsIntors: string[] = [];
-      if (isRoundTrip) {
+      if (effectiveRoundTrip) {
         waypointsIntors = [dropoffCity];
         if (intermediariesIntors) {
           waypointsIntors.push(...intermediariesIntors.split(",").map((c: string) => c.trim()).filter(Boolean));
@@ -201,7 +213,7 @@ export function RequestTransportForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ waypoints: waypointsDus }),
         }).then((r) => r.json()).catch(() => ({ fallback: true })),
-        isRoundTrip
+        effectiveRoundTrip
           ? fetch("/api/distance", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -222,7 +234,7 @@ export function RequestTransportForm() {
       // Total km from Google Maps (or fallback)
       const useGoogleMaps = !distanceDusRes.fallback && distanceDusRes.totalKm > 0;
       const kmDus = useGoogleMaps ? distanceDusRes.totalKm : 0;
-      const kmIntors = isRoundTrip && distanceIntorsRes && !distanceIntorsRes.fallback
+      const kmIntors = effectiveRoundTrip && distanceIntorsRes && !distanceIntorsRes.fallback
         ? distanceIntorsRes.totalKm : 0;
       const googleTotalKm = kmDus + kmIntors;
 
@@ -942,6 +954,9 @@ export function RequestTransportForm() {
               vehicleSeats={selected.vehicleSeats}
               vehicleCategory={selected.vehicleCategory}
               totalPrice={selected.estimatedPrice}
+              currency={selected.currency}
+              isInternational={selected.isInternational}
+              isVatPayer={selected.companyIsVatPayer}
               contractUrl={selected.companyContractUrl}
               contractName={selected.companyContractName}
               accepted={contractAccepted}

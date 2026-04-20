@@ -19,6 +19,9 @@ interface ContractPreviewProps {
   vehicleSeats?: number;
   vehicleCategory?: string;
   totalPrice: number;
+  currency?: "RON" | "EUR";
+  isInternational?: boolean;
+  isVatPayer?: boolean;
   contractUrl?: string | null;
   contractName?: string | null;
   accepted: boolean;
@@ -40,6 +43,9 @@ export default function ContractPreview({
   vehicleSeats,
   vehicleCategory,
   totalPrice,
+  currency = "RON",
+  isInternational = false,
+  isVatPayer = true,
   contractUrl,
   contractName,
   accepted,
@@ -52,6 +58,11 @@ export default function ContractPreview({
   const acceptTime = now.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
 
   const totalFormatted = Number(totalPrice).toFixed(2);
+  const vatLabel = isInternational
+    ? "TVA 0% SDD (Scutit cu Drept de Deducere, art. 294 CF)"
+    : !isVatPayer
+      ? "Neplătitor TVA (art. 310 CF)"
+      : "TVA inclus";
 
   // Estimated KM (200 km/day minimum * nr days)
   const nrZile = returnDate
@@ -84,7 +95,7 @@ export default function ContractPreview({
             <p><strong>Traseu:</strong> {route}</p>
             <p><strong>Data transport:</strong> {departureDate}{returnDate ? ` → ${returnDate}` : ""}</p>
             {vehicleName && <p><strong>Vehicul:</strong> {vehicleName}{vehicleSeats ? `, ${vehicleSeats} locuri` : ""}</p>}
-            <p><strong>Valoare totala:</strong> {totalFormatted} RON (TVA inclus)</p>
+            <p><strong>Valoare totala:</strong> {totalFormatted} {currency} ({vatLabel})</p>
           </div>
         </div>
 
@@ -215,7 +226,7 @@ export default function ContractPreview({
               <tbody>
                 <tr className="border-b border-gray-400">
                   <td className="p-1 bg-gray-100 font-semibold w-40">Valoarea serviciilor</td>
-                  <td className="p-1"><strong>{totalFormatted}</strong> lei — TVA inclus</td>
+                  <td className="p-1"><strong>{totalFormatted}</strong> {currency === "EUR" ? "EUR" : "lei"} — {vatLabel}</td>
                 </tr>
                 <tr className="border-b border-gray-400">
                   <td className="p-1 bg-gray-100 font-semibold">Avans</td>

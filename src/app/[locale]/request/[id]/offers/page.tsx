@@ -638,6 +638,9 @@ export default function RequestOffersPage() {
                         vehicleSeats={offer.vehicle?.seats}
                         vehicleCategory={offer.vehicle?.category}
                         totalPrice={totalPrice}
+                        currency={((request as any)?.currency || "RON").toUpperCase() === "EUR" ? "EUR" : "RON"}
+                        isInternational={(request as any)?.is_international === true}
+                        isVatPayer={(offer.company as any).is_vat_payer !== false}
                         contractUrl={(offer.company as any).contract_template_url || null}
                         contractName={(offer.company as any).contract_template_name || null}
                         accepted={isContractAccepted}

@@ -504,6 +504,9 @@ export default function BookPage() {
               vehicleSeats={bookingLink.vehicles?.seats}
               vehicleCategory={(bookingLink.vehicles as any)?.category}
               totalPrice={bookingLink.total_price}
+              currency={((bookingLink as any).currency || "RON").toUpperCase() === "EUR" ? "EUR" : "RON"}
+              isInternational={(bookingLink as any).is_international === true}
+              isVatPayer={(bookingLink.companies as any)?.is_vat_payer !== false}
               accepted={contractAccepted}
               onToggle={() => setContractAccepted((v) => !v)}
             />
