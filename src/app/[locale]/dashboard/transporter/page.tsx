@@ -1755,6 +1755,19 @@ export default function TransporterDashboard() {
                   placeholder="Ex: TRANSLEI"
                 />
               </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <label className="mb-1 block text-sm font-semibold text-amber-900">Serie factură curse externe (EUR)</label>
+                <p className="mb-2 text-xs text-amber-700">
+                  Folosită pentru curse internaționale (TVA 0% SDD, art. 294 CF). Factura se emite în EUR.
+                </p>
+                <input
+                  type="text"
+                  value={company.smartbill_series_external || ""}
+                  onChange={(e) => setCompany({...company, smartbill_series_external: e.target.value})}
+                  className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  placeholder="Ex: TRANS EURO"
+                />
+              </div>
               <button
                 onClick={async () => {
                   const supabase = createClient();
@@ -1763,6 +1776,7 @@ export default function TransporterDashboard() {
                     smartbill_token: company.smartbill_token,
                     smartbill_series: company.smartbill_series,
                     smartbill_proforma_series: company.smartbill_proforma_series,
+                    smartbill_series_external: company.smartbill_series_external,
                   }).eq("id", company.id);
                   alert("SmartBill salvat!");
                 }}
@@ -1778,6 +1792,106 @@ export default function TransporterDashboard() {
                   SmartBill configurat. Facturile vor fi emise automat pe firma ta la fiecare plată.
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Curse externe (EUR) + Status TVA */}
+          <div className="rounded-xl bg-white p-6 shadow-md">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <DollarSign className="h-5 w-5 text-amber-500" />
+              Curse externe & Status TVA
+            </h3>
+            <p className="mb-4 text-sm text-gray-500">
+              Configurări pentru transport internațional (TVA 0% SDD) și status plătitor TVA verificat la ANAF.
+            </p>
+
+            <div className="space-y-4">
+              {/* Status TVA din ANAF */}
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-gray-700">Status TVA (ANAF)</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      {company.is_vat_payer === false ? (
+                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                          NEPLĂTITOR TVA (art. 310 CF)
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                          ✓ Plătitor TVA 21%
+                        </span>
+                      )}
+                      {company.vat_payer_checked_at && (
+                        <span className="text-xs text-gray-500">
+                          Verificat: {new Date(company.vat_payer_checked_at).toLocaleDateString("ro-RO")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/companies/refresh-anaf", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ companyId: company.id }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setCompany({ ...company, is_vat_payer: data.is_vat_payer, vat_payer_checked_at: new Date().toISOString() });
+                          alert(`Status actualizat: ${data.is_vat_payer ? "Plătitor TVA" : "Neplătitor TVA"}`);
+                        } else {
+                          alert(`Eroare: ${data.error}`);
+                        }
+                      } catch (err: any) {
+                        alert(`Eroare: ${err?.message}`);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Reverifică la ANAF
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Dacă nu ești plătitor TVA, facturile emise vor avea cota 0% cu mențiunea &quot;Neplătitor TVA, art. 310 Cod Fiscal&quot;.
+                </p>
+              </div>
+
+              {/* Tarif extern EUR/km */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Tarif per km — curse externe (EUR, fără TVA)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={company.price_per_km_external_eur ?? ""}
+                    onChange={(e) => setCompany({ ...company, price_per_km_external_eur: parseFloat(e.target.value) || 0 })}
+                    className="w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Ex: 1.50"
+                  />
+                  <span className="text-sm text-gray-500">EUR/km</span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Aplicat pentru curse cu plecare/destinație în afara României. La factură se adaugă TVA 0% SDD (art. 294 CF) și se emite în EUR.
+                </p>
+              </div>
+
+              <button
+                onClick={async () => {
+                  const supabase = createClient();
+                  const { error } = await supabase
+                    .from("companies")
+                    .update({ price_per_km_external_eur: company.price_per_km_external_eur || 0 })
+                    .eq("id", company.id);
+                  if (error) alert(`Eroare: ${error.message}`);
+                  else alert("Tarif extern salvat!");
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
+              >
+                <Save className="h-4 w-4" />
+                Salvează tarif extern
+              </button>
             </div>
           </div>
         </div>
