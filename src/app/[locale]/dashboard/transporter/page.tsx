@@ -1222,6 +1222,71 @@ export default function TransporterDashboard() {
           <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
             <p>Setează tariful per km (fără TVA) pentru fiecare categorie de vehicul pe care o deții. Clientii vor vedea prețul calculat automat pe baza distanței și a tarifului tău.</p>
           </div>
+
+          {/* Tarif curse externe EUR (global, nu per categorie) */}
+          <div className="rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
+                <DollarSign className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900">Curse externe (internaționale)</div>
+                <div className="text-xs text-gray-500">Tarif unic EUR/km pentru toate cursele cu plecare/destinație în afara României</div>
+              </div>
+              {company?.price_per_km_external_eur > 0 && (
+                <span className="ml-auto rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                  Tarif extern setat
+                </span>
+              )}
+            </div>
+            <form
+              className="flex flex-wrap items-end gap-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!company) return;
+                const form = e.target as HTMLFormElement;
+                const price = parseFloat((form.elements.namedItem("priceEur") as HTMLInputElement).value) || 0;
+                const supabase = createClient();
+                const { error } = await supabase
+                  .from("companies")
+                  .update({ price_per_km_external_eur: price })
+                  .eq("id", company.id);
+                if (error) alert(`Eroare: ${error.message}`);
+                else {
+                  setCompany({ ...company, price_per_km_external_eur: price });
+                  alert("Tarif extern salvat!");
+                }
+              }}
+            >
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Preț per km (EUR, fără TVA) *</label>
+                <input
+                  name="priceEur"
+                  type="number"
+                  step="0.10"
+                  min="0"
+                  max="50"
+                  defaultValue={company?.price_per_km_external_eur || ""}
+                  placeholder="Ex: 1.50"
+                  className="w-40 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Salvează tarif EUR
+              </button>
+            </form>
+            <p className="mt-3 text-xs text-amber-700">
+              💡 Factura pentru cursele externe se emite cu <strong>TVA 0% SDD</strong> (Scutit cu Drept de Deducere, art. 294 CF) pe seria <strong>{company?.smartbill_series_external || "TRANS EURO"}</strong> (configurabilă din tab-ul Profil Companie → SmartBill).
+            </p>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-700">Tarife interne (RON/km pe categorie de vehicul)</h4>
+          </div>
           {Object.entries(VEHICLE_CATEGORIES).map(([cat, info]) => {
             const hasVehicle = vehicles.some((v) => v.category === cat);
             if (!hasVehicle) return null;
@@ -1857,41 +1922,9 @@ export default function TransporterDashboard() {
                 </p>
               </div>
 
-              {/* Tarif extern EUR/km */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Tarif per km — curse externe (EUR, fără TVA)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={company.price_per_km_external_eur ?? ""}
-                    onChange={(e) => setCompany({ ...company, price_per_km_external_eur: parseFloat(e.target.value) || 0 })}
-                    className="w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    placeholder="Ex: 1.50"
-                  />
-                  <span className="text-sm text-gray-500">EUR/km</span>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Aplicat pentru curse cu plecare/destinație în afara României. La factură se adaugă TVA 0% SDD (art. 294 CF) și se emite în EUR.
-                </p>
-              </div>
-
-              <button
-                onClick={async () => {
-                  const supabase = createClient();
-                  const { error } = await supabase
-                    .from("companies")
-                    .update({ price_per_km_external_eur: company.price_per_km_external_eur || 0 })
-                    .eq("id", company.id);
-                  if (error) alert(`Eroare: ${error.message}`);
-                  else alert("Tarif extern salvat!");
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-600"
-              >
-                <Save className="h-4 w-4" />
-                Salvează tarif extern
-              </button>
+              <p className="mt-2 text-xs text-gray-500">
+                💡 Tariful per km pentru curse externe (EUR) se setează în tab-ul <strong>Tarife</strong>.
+              </p>
             </div>
           </div>
         </div>
