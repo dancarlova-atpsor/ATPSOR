@@ -190,53 +190,48 @@ export function RequestTransportForm() {
 
       const blockedIds = new Set((blocks || []).map((b: { vehicle_id: string }) => b.vehicle_id));
 
-      // Build waypoints for Google Maps API
-      const waypointsDus: string[] = [pickupCity];
+      // Build waypoints pentru UN SINGUR apel Google (identic cu ce ar face userul
+      // pe Google Maps) — [pickup, ...intDus, dropoff, ...intIntors, pickup]
+      // ca sa primim EXACT km pe care ii arata Google.
+      const fullWaypoints: string[] = [pickupCity];
+      const fullCountries: string[] = [pickupCountry];
+
       if (intermediariesDus) {
-        waypointsDus.push(...intermediariesDus.split(",").map((c: string) => c.trim()).filter(Boolean));
-      }
-      waypointsDus.push(dropoffCity);
-
-      let waypointsIntors: string[] = [];
-      if (effectiveRoundTrip) {
-        waypointsIntors = [dropoffCity];
-        if (intermediariesIntors) {
-          waypointsIntors.push(...intermediariesIntors.split(",").map((c: string) => c.trim()).filter(Boolean));
+        const cities = intermediariesDus.split(",").map((c: string) => c.trim()).filter(Boolean);
+        for (const city of cities) {
+          fullWaypoints.push(city);
+          fullCountries.push(""); // auto-detect de Google pentru intermediari
         }
-        waypointsIntors.push(pickupCity);
       }
 
-      // Intermediarii pentru international: presupunem tara intermediara
-      // bazata pe tarile plecare/destinatie (cel mai frecvent se afla pe ruta)
-      const dusDistanceBody = {
-        waypoints: waypointsDus,
-        pickupCountry,
-        dropoffCountry,
-        // Intermediarii sunt pe ruta, deci oricare din cele 2 tari poate fi relevanta.
-        // Google cauta cu/fara tara si descopera singur.
-        intermediateCountry: pickupCountry !== dropoffCountry ? "" : pickupCountry,
-      };
-      const intorsDistanceBody = {
-        waypoints: waypointsIntors,
-        pickupCountry: dropoffCountry, // pentru retur, plecarea e destinatia initiala
-        dropoffCountry: pickupCountry,
-        intermediateCountry: pickupCountry !== dropoffCountry ? "" : pickupCountry,
+      fullWaypoints.push(dropoffCity);
+      fullCountries.push(dropoffCountry);
+
+      if (effectiveRoundTrip) {
+        if (intermediariesIntors) {
+          const cities = intermediariesIntors.split(",").map((c: string) => c.trim()).filter(Boolean);
+          for (const city of cities) {
+            fullWaypoints.push(city);
+            fullCountries.push("");
+          }
+        }
+        fullWaypoints.push(pickupCity);
+        fullCountries.push(pickupCountry);
+      }
+
+      // Trimitem ca array de obiecte {city, country} la /api/distance ca sa
+      // foloseasca tara corecta pentru fiecare punct.
+      const fullDistanceBody = {
+        waypoints: fullWaypoints.map((city, i) => ({ city, country: fullCountries[i] || undefined })),
       };
 
       // Fetch distance from Google Maps API, vehicles, and pricing in parallel
-      const [distanceDusRes, distanceIntorsRes, vehiclesRes, pricingRes] = await Promise.all([
+      const [distanceFullRes, vehiclesRes, pricingRes] = await Promise.all([
         fetch("/api/distance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dusDistanceBody),
+          body: JSON.stringify(fullDistanceBody),
         }).then((r) => r.json()).catch(() => ({ fallback: true })),
-        effectiveRoundTrip
-          ? fetch("/api/distance", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(intorsDistanceBody),
-            }).then((r) => r.json()).catch(() => ({ fallback: true }))
-          : Promise.resolve(null),
         supabase
           .from("vehicles")
           .select("*, company:companies(*)")
@@ -248,12 +243,9 @@ export function RequestTransportForm() {
           .select("*"),
       ]);
 
-      // Total km from Google Maps (or fallback)
-      const useGoogleMaps = !distanceDusRes.fallback && distanceDusRes.totalKm > 0;
-      const kmDus = useGoogleMaps ? distanceDusRes.totalKm : 0;
-      const kmIntors = effectiveRoundTrip && distanceIntorsRes && !distanceIntorsRes.fallback
-        ? distanceIntorsRes.totalKm : 0;
-      const googleTotalKm = kmDus + kmIntors;
+      // Total km din Google Maps (un singur apel cu tot circuitul)
+      const useGoogleMaps = !distanceFullRes.fallback && distanceFullRes.totalKm > 0;
+      const googleTotalKm = useGoogleMaps ? distanceFullRes.totalKm : 0;
 
       const vehicles = vehiclesRes.data || [];
       const allPricing = pricingRes.data || [];
