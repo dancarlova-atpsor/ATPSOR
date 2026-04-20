@@ -567,7 +567,36 @@ export function RequestTransportForm() {
           )}
 
           {/* Passengers + dates */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* Tip cursa: Tur / Tur-Retur */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRoundTrip(false);
+                setReturnDate("");
+              }}
+              className={`flex-1 rounded-lg border-2 py-3 text-sm font-semibold transition ${
+                !isRoundTrip
+                  ? "border-primary-500 bg-primary-50 text-primary-700"
+                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+              }`}
+            >
+              → Tur (doar dus)
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsRoundTrip(true)}
+              className={`flex-1 rounded-lg border-2 py-3 text-sm font-semibold transition ${
+                isRoundTrip
+                  ? "border-primary-500 bg-primary-50 text-primary-700"
+                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+              }`}
+            >
+              ⇄ Tur-Retur (dus-întors)
+            </button>
+          </div>
+
+          <div className={`grid grid-cols-1 gap-4 ${isRoundTrip ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Pasageri *</label>
               <div className="relative">
@@ -598,22 +627,22 @@ export function RequestTransportForm() {
                 />
               </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Data întoarcerii</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={returnDate}
-                  onChange={(e) => {
-                    setReturnDate(e.target.value);
-                    setIsRoundTrip(!!e.target.value);
-                  }}
-                  min={departureDate || new Date().toISOString().split("T")[0]}
-                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                />
+            {isRoundTrip && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Data întoarcerii *</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                    required={isRoundTrip}
+                    min={departureDate || new Date().toISOString().split("T")[0]}
+                    className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Intermediate cities - outbound */}
