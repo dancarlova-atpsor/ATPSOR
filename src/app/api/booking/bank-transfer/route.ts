@@ -24,6 +24,7 @@ export async function POST(request: Request) {
       totalPrice, currency = "ron",
       billingData, route,
       transporterName, transporterEmail,
+      isInternational, pickupCountry, dropoffCountry,
     } = await request.json();
 
     if (!totalPrice || !billingData?.email) {
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
         client_name: billingData.name || null,
         client_email: billingData.email || null,
         client_address: billingData.address || null,
+        // Flag-uri curse externe
+        is_international: isInternational === true,
+        currency_used: (currency || "ron").toUpperCase(),
       })
       .select()
       .single();
@@ -101,13 +105,16 @@ export async function POST(request: Request) {
     if (companyId) {
       const { data: comp } = await serviceClient
         .from("companies")
-        .select("smartbill_username, smartbill_token, smartbill_series, smartbill_proforma_series, cui, name, email")
+        .select("smartbill_username, smartbill_token, smartbill_series, smartbill_proforma_series, smartbill_series_external, is_vat_payer, cui, name, email")
         .eq("id", companyId)
         .single();
 
       if (comp?.smartbill_username && comp?.smartbill_token) {
+        const isIntl = isInternational === true;
+        const isVatPayer = (comp as any).is_vat_payer !== false;
+        const effectiveVatRate = (isIntl || !isVatPayer) ? 0 : 0.21;
         const subtotalWithVat = totalPrice * 0.95; // 95% transport (fara comision)
-        const subtotalNoVat = subtotalWithVat / 1.21; // fara TVA
+        const subtotalNoVat = subtotalWithVat / (1 + effectiveVatRate);
         generateAllInvoices({
           bookingId: booking.id,
           subtotalWithVat,
@@ -120,15 +127,19 @@ export async function POST(request: Request) {
           transporterCui: comp.cui || "",
           transporterEmail: comp.email || transporterEmail || "",
           transporterSeries: comp.smartbill_series || "",
+          transporterSeriesExternal: (comp as any).smartbill_series_external || "",
           transporterProformaSeries: (comp as any).smartbill_proforma_series || "",
           transporterSmartBillUsername: comp.smartbill_username,
           transporterSmartBillToken: comp.smartbill_token,
+          transporterIsVatPayer: isVatPayer,
           clientName: billingData.name || "",
           clientEmail: billingData.email || "",
           clientAddress: billingData.address || "",
           clientCity: billingData.city || "",
           clientCounty: billingData.county || "",
           paymentMethod: "bank_transfer",
+          isInternational: isIntl,
+          currency: (currency || "ron").toUpperCase() as "RON" | "EUR",
         }).catch((err) => console.error("Proforma generation error:", err));
       }
     }

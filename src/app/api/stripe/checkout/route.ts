@@ -18,6 +18,8 @@ export async function POST(request: Request) {
       // Invoice fields
       transporterName, transporterCui, transporterEmail, transporterSeries,
       route, totalKm, pricePerKm,
+      // External trip flags
+      isInternational, pickupCountry, dropoffCountry, transporterIsVatPayer,
     } = await request.json();
 
     // Total = subtotalWithVat + platformFee
@@ -53,6 +55,13 @@ export async function POST(request: Request) {
     if (transporterCui) metadata.transporterCui = String(transporterCui);
     if (transporterEmail) metadata.transporterEmail = String(transporterEmail).slice(0, 500);
     if (transporterSeries) metadata.transporterSeries = String(transporterSeries);
+
+    // Flag-uri curse externe (propagate spre webhook + invoicing)
+    metadata.currency = String(currency || "ron");
+    if (isInternational) metadata.isInternational = "true";
+    if (pickupCountry) metadata.pickupCountry = String(pickupCountry);
+    if (dropoffCountry) metadata.dropoffCountry = String(dropoffCountry);
+    if (transporterIsVatPayer === false) metadata.transporterIsVatPayer = "false";
 
     const stripe = getStripe();
 

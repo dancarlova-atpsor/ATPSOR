@@ -244,12 +244,24 @@ export async function generateTransportInvoice(params: {
   totalKm: number;
   pricePerKm: number;
   totalWithoutVat: number;
-  vatRate: number;
+  vatRate: number;             // Cota aplicata efectiv (0, 21, etc.)
+  currency?: "RON" | "EUR";    // default RON
+  isInternational?: boolean;   // pentru mentiune pe factura
+  isVatPayer?: boolean;        // pentru mentiune pe factura (default true)
 }): Promise<SmartBillResponse | null> {
   // Build auth header from transporter's credentials or fall back to ATPSOR
   let authHeader: string | undefined;
   if (params.transporterSmartBillUsername && params.transporterSmartBillToken) {
     authHeader = "Basic " + Buffer.from(`${params.transporterSmartBillUsername}:${params.transporterSmartBillToken}`).toString("base64");
+  }
+
+  // Mentiune pe produs daca TVA e 0% (SmartBill nu are camp dedicat universal,
+  // deci incorporam in denumire)
+  let productName = `Transport ocazional persoane: ${params.route} (${params.date})`;
+  if (params.isInternational) {
+    productName += " — Scutit cu drept de deducere, art. 294 alin. (1) lit. c) Cod Fiscal";
+  } else if (params.isVatPayer === false) {
+    productName += " — Neplatitor TVA conform art. 310 Cod Fiscal";
   }
 
   return createInvoice({
@@ -266,7 +278,7 @@ export async function generateTransportInvoice(params: {
     },
     products: [
       {
-        name: `Transport ocazional persoane: ${params.route} (${params.date})`,
+        name: productName,
         measuringUnitName: "km",
         quantity: params.totalKm,
         price: params.pricePerKm,
@@ -274,7 +286,7 @@ export async function generateTransportInvoice(params: {
         taxPercentage: params.vatRate,
       },
     ],
-    currency: "RON",
+    currency: params.currency || "RON",
   });
 }
 

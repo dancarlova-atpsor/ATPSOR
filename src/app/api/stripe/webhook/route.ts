@@ -181,10 +181,20 @@ export async function POST(request: Request) {
           let sbUsername = "";
           let sbToken = "";
           let sbProforma = "";
+          let sbExternal = "";
+          let isVatPayer = true;
           if (companyId) {
-            const { data: comp } = await supabase.from("companies").select("smartbill_username, smartbill_token, smartbill_proforma_series").eq("id", companyId).single();
-            if (comp) { sbUsername = comp.smartbill_username || ""; sbToken = comp.smartbill_token || ""; sbProforma = (comp as any).smartbill_proforma_series || ""; }
+            const { data: comp } = await supabase.from("companies").select("smartbill_username, smartbill_token, smartbill_proforma_series, smartbill_series_external, is_vat_payer").eq("id", companyId).single();
+            if (comp) {
+              sbUsername = comp.smartbill_username || "";
+              sbToken = comp.smartbill_token || "";
+              sbProforma = (comp as any).smartbill_proforma_series || "";
+              sbExternal = (comp as any).smartbill_series_external || "";
+              isVatPayer = (comp as any).is_vat_payer !== false;
+            }
           }
+          const isInternational = meta.isInternational === "true";
+          const currency = (meta.currency || "ron").toUpperCase() as "RON" | "EUR";
           generateAllInvoices({
             bookingId: booking.id,
             subtotalWithVat: parseFloat(meta.subtotalWithVat || "0"),
@@ -197,15 +207,19 @@ export async function POST(request: Request) {
             transporterCui: meta.transporterCui || "",
             transporterEmail: meta.transporterEmail || "",
             transporterSeries: meta.transporterSeries || "",
+            transporterSeriesExternal: sbExternal,
             transporterProformaSeries: sbProforma,
             transporterSmartBillUsername: sbUsername,
             transporterSmartBillToken: sbToken,
+            transporterIsVatPayer: isVatPayer,
             clientName: meta.billing_name || "",
             clientEmail: meta.billing_email || "",
             clientAddress: meta.billing_address || "",
             clientCity: meta.billing_city || "",
             clientCounty: meta.billing_county || "",
             paymentMethod: "card",
+            isInternational,
+            currency,
           }).catch((err) => console.error("Invoice generation error:", err));
         }
       }
@@ -297,10 +311,20 @@ export async function POST(request: Request) {
             let sbUser = "";
             let sbTok = "";
             let sbProf = "";
+            let sbExt = "";
+            let isVatPayer2 = true;
             if (offer.company_id) {
-              const { data: comp2 } = await supabase.from("companies").select("smartbill_username, smartbill_token, smartbill_proforma_series").eq("id", offer.company_id).single();
-              if (comp2) { sbUser = comp2.smartbill_username || ""; sbTok = comp2.smartbill_token || ""; sbProf = (comp2 as any).smartbill_proforma_series || ""; }
+              const { data: comp2 } = await supabase.from("companies").select("smartbill_username, smartbill_token, smartbill_proforma_series, smartbill_series_external, is_vat_payer").eq("id", offer.company_id).single();
+              if (comp2) {
+                sbUser = comp2.smartbill_username || "";
+                sbTok = comp2.smartbill_token || "";
+                sbProf = (comp2 as any).smartbill_proforma_series || "";
+                sbExt = (comp2 as any).smartbill_series_external || "";
+                isVatPayer2 = (comp2 as any).is_vat_payer !== false;
+              }
             }
+            const isInternational2 = meta.isInternational === "true" || (req as any)?.is_international === true;
+            const currency2 = ((meta.currency || "ron") as string).toUpperCase() as "RON" | "EUR";
             generateAllInvoices({
               bookingId: booking.id,
               subtotalWithVat: parseFloat(meta.subtotalWithVat || "0"),
@@ -313,14 +337,18 @@ export async function POST(request: Request) {
               transporterCui: meta.transporterCui || "",
               transporterEmail: meta.transporterEmail || "",
               transporterSeries: meta.transporterSeries || "",
+              transporterSeriesExternal: sbExt,
               transporterProformaSeries: sbProf,
               transporterSmartBillUsername: sbUser,
               transporterSmartBillToken: sbTok,
+              transporterIsVatPayer: isVatPayer2,
               clientName: meta.billing_name || "",
               clientEmail: meta.billing_email || "",
               clientAddress: meta.billing_address || "",
               clientCity: meta.billing_city || "",
               clientCounty: meta.billing_county || "",
+              isInternational: isInternational2,
+              currency: currency2,
             }).catch((err) => console.error("Invoice generation error:", err));
           }
         }

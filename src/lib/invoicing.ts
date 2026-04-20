@@ -10,6 +10,7 @@ import {
   type SmartBillResponse,
 } from "./smartbill";
 import { TVA_RATE, PLATFORM_FEE_RATE } from "./distances";
+import { convertEurToRonWithMargin } from "./bnr";
 import { createServerClient } from "@supabase/ssr";
 import type { InvoiceType } from "@/types/database";
 
@@ -25,8 +26,8 @@ const LUXURIA_COMMISSION_RATE = 0.50; // 50% din comisionul platformei
 
 interface GenerateAllInvoicesParams {
   bookingId: string;
-  subtotalWithVat: number;    // suma platita de client FARA platform fee
-  platformFee: number;        // comisionul platformei (5% din subtotalWithVat)
+  subtotalWithVat: number;    // suma platita de client FARA platform fee (in currency-ul cursei)
+  platformFee: number;        // comisionul platformei (5% din subtotalWithVat, in currency-ul cursei)
   route: string;
   date: string;
   totalKm: number;
@@ -35,10 +36,12 @@ interface GenerateAllInvoicesParams {
   transporterName: string;
   transporterCui: string;
   transporterEmail: string;
-  transporterSeries: string;
+  transporterSeries: string;          // serie LEI (RON) pentru curse interne
+  transporterSeriesExternal?: string; // serie EURO pentru curse externe
   transporterProformaSeries?: string;
   transporterSmartBillUsername?: string;
   transporterSmartBillToken?: string;
+  transporterIsVatPayer?: boolean;    // default true
   // Client
   clientName: string;
   clientEmail: string;
@@ -46,8 +49,10 @@ interface GenerateAllInvoicesParams {
   clientAddress?: string;
   clientCity?: string;
   clientCounty?: string;
-  // Payment type
+  // Payment type + trip type
   paymentMethod?: "card" | "bank_transfer";
+  isInternational?: boolean;
+  currency?: "RON" | "EUR";           // default RON
 }
 
 async function saveInvoice(
@@ -58,6 +63,8 @@ async function saveInvoice(
   clientName: string,
   amount: number,
   result: SmartBillResponse | null,
+  currency: "RON" | "EUR" = "RON",
+  effectiveVatRate: number = TVA_RATE,
 ) {
   try {
     const supabase = createServiceClient();
@@ -71,8 +78,8 @@ async function saveInvoice(
         issuer_cui: issuerCui,
         client_name: clientName,
         amount,
-        vat_amount: amount * TVA_RATE,
-        currency: "RON",
+        vat_amount: amount * effectiveVatRate,
+        currency,
         status: result?.number ? "issued" : (result?.errorText ? "failed" : "pending"),
         error_message: result?.errorText || null,
       },
@@ -84,10 +91,35 @@ async function saveInvoice(
 }
 
 export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
-  const vatRate = TVA_RATE * 100; // SmartBill asteapta procentul (ex: 21)
-  const subtotalNoVat = params.subtotalWithVat / (1 + TVA_RATE);
-  const luxuriaCommission = params.platformFee * LUXURIA_COMMISSION_RATE;
+  const isInternational = params.isInternational === true;
+  const isVatPayer = params.transporterIsVatPayer !== false; // default true
+  const currency: "RON" | "EUR" = params.currency || "RON";
   const isCard = params.paymentMethod !== "bank_transfer";
+
+  // Cota TVA efectiva pentru factura transport:
+  // - Extern: 0 (SDD art. 294)
+  // - Neplatitor TVA: 0 (art. 310)
+  // - Altfel: 21
+  const effectiveVatRate = (isInternational || !isVatPayer) ? 0 : TVA_RATE;
+  const vatRatePct = effectiveVatRate * 100; // SmartBill asteapta procentul
+
+  // subtotalWithVat aici = subtotalNoVat daca TVA e 0 (subtotalWithVat nu include TVA in cazul asta)
+  const subtotalNoVat = params.subtotalWithVat / (1 + effectiveVatRate);
+  const luxuriaCommission = params.platformFee * LUXURIA_COMMISSION_RATE;
+
+  // Pentru curs BNR + 2% (comision ATPSOR → transportator si Luxuria → ATPSOR sunt IN RON)
+  // daca cursa e in EUR, convertim
+  const platformFeeInRon = currency === "EUR"
+    ? (await convertEurToRonWithMargin(params.platformFee)).ron
+    : params.platformFee;
+  const luxuriaCommissionInRon = currency === "EUR"
+    ? (await convertEurToRonWithMargin(luxuriaCommission)).ron
+    : luxuriaCommission;
+
+  // Selectare serie corectă (LEI pentru intern, EURO pentru extern)
+  const transporterSeriesEffective = isInternational && params.transporterSeriesExternal
+    ? params.transporterSeriesExternal
+    : params.transporterSeries;
 
   // Check idempotency - nu generam duplicate
   try {
@@ -121,7 +153,7 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
       // Plata card → Factura + marcare incasata
       result = await generateTransportInvoice({
         transporterCui: params.transporterCui,
-        transporterSeries: params.transporterSeries,
+        transporterSeries: transporterSeriesEffective,
         transporterSmartBillUsername: params.transporterSmartBillUsername,
         transporterSmartBillToken: params.transporterSmartBillToken,
         clientName: params.clientName,
@@ -135,7 +167,10 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         totalKm: params.totalKm,
         pricePerKm: params.pricePerKm,
         totalWithoutVat: subtotalNoVat,
-        vatRate,
+        vatRate: vatRatePct,
+        currency,
+        isInternational,
+        isVatPayer,
       });
 
       // Marcare incasata daca factura s-a emis
@@ -181,8 +216,12 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
       }
     } else {
       // Transfer bancar → Proforma (foloseste seria de proforma, nu de factura)
+      let productName = `Transport ocazional persoane: ${params.route} (${params.date})`;
+      if (isInternational) productName += " — Scutit cu drept de deducere, art. 294 alin. (1) lit. c) Cod Fiscal";
+      else if (!isVatPayer) productName += " — Neplatitor TVA conform art. 310 Cod Fiscal";
+
       result = await createProforma({
-        seriesName: params.transporterProformaSeries || params.transporterSeries,
+        seriesName: params.transporterProformaSeries || transporterSeriesEffective,
         issuerCui: params.transporterCui,
         authHeader: transporterAuth,
         client: {
@@ -194,14 +233,14 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
           county: params.clientCounty,
         },
         products: [{
-          name: `Transport ocazional persoane: ${params.route} (${params.date})`,
+          name: productName,
           measuringUnitName: "km",
           quantity: params.totalKm,
           price: params.pricePerKm,
           isTaxIncluded: false,
-          taxPercentage: vatRate,
+          taxPercentage: vatRatePct,
         }],
-        currency: "RON",
+        currency,
       });
 
       // Trimite proforma email - cu PDF daca SmartBill returneaza, fara daca nu
@@ -257,7 +296,8 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
     await saveInvoice(
       params.bookingId, "transport",
       params.transporterName, params.transporterCui,
-      params.clientName, subtotalNoVat, result
+      params.clientName, subtotalNoVat, result,
+      currency, effectiveVatRate
     );
     console.log(`Transport ${isCard ? "invoice" : "proforma"}: ${result?.number || "pending"}`);
   } catch (err) {
@@ -265,26 +305,31 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
     await saveInvoice(
       params.bookingId, "transport",
       params.transporterName, params.transporterCui,
-      params.clientName, subtotalNoVat, { errorText: String(err) }
+      params.clientName, subtotalNoVat, { errorText: String(err) },
+      currency, effectiveVatRate
     );
   }
 
   // 2. Factura comision: ATPSOR → Transportator (5%) — doar la plata card
+  //    ATPSOR e platitor TVA si emite intotdeauna in RON, TVA 21%.
+  //    Daca cursa e in EUR, convertim platformFee la RON cu cursul BNR + 2%.
   if (isCard) {
+    const atpsorVatPct = TVA_RATE * 100; // ATPSOR e platitor TVA
     try {
       const result = await generateCommissionInvoice({
         transporterName: params.transporterName,
         transporterCui: params.transporterCui,
         transporterEmail: params.transporterEmail,
-        commissionAmount: params.platformFee / (1 + TVA_RATE), // fara TVA
+        commissionAmount: platformFeeInRon / (1 + TVA_RATE), // fara TVA
         route: params.route,
         date: params.date,
-        vatRate,
+        vatRate: atpsorVatPct,
       });
       await saveInvoice(
         params.bookingId, "commission",
         "ATPSOR", process.env.SMARTBILL_COMPANY_VAT || "",
-        params.transporterName, params.platformFee / (1 + TVA_RATE), result
+        params.transporterName, platformFeeInRon / (1 + TVA_RATE), result,
+        "RON", TVA_RATE
       );
       console.log(`Commission invoice: ${result?.number || "pending"}`);
     } catch (err) {
@@ -292,27 +337,30 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
       await saveInvoice(
         params.bookingId, "commission",
         "ATPSOR", process.env.SMARTBILL_COMPANY_VAT || "",
-        params.transporterName, params.platformFee / (1 + TVA_RATE),
-        { errorText: String(err) }
+        params.transporterName, platformFeeInRon / (1 + TVA_RATE),
+        { errorText: String(err) }, "RON", TVA_RATE
       );
     }
   }
 
   // 3. Factura Luxuria: Luxuria Trans Travel → ATPSOR (50% din comision) — doar la plata card
+  //    La fel, in RON cu TVA 21%, convertit din EUR daca e cazul.
   if (isCard) {
+    const atpsorVatPct = TVA_RATE * 100;
     try {
       const luxuriaName = process.env.LUXURIA_NAME || "Luxuria Trans Travel SRL";
       const luxuriaCui = process.env.LUXURIA_SMARTBILL_VAT || "";
       const result = await generateLuxuriaCommissionInvoice({
-        commissionAmount: luxuriaCommission / (1 + TVA_RATE), // fara TVA
+        commissionAmount: luxuriaCommissionInRon / (1 + TVA_RATE), // fara TVA
         route: params.route,
         date: params.date,
-        vatRate,
+        vatRate: atpsorVatPct,
       });
       await saveInvoice(
         params.bookingId, "luxuria_commission",
         luxuriaName, luxuriaCui,
-        "ATPSOR", luxuriaCommission / (1 + TVA_RATE), result
+        "ATPSOR", luxuriaCommissionInRon / (1 + TVA_RATE), result,
+        "RON", TVA_RATE
       );
       console.log(`Luxuria commission invoice: ${result?.number || "pending"}`);
     } catch (err) {
@@ -321,8 +369,8 @@ export async function generateAllInvoices(params: GenerateAllInvoicesParams) {
         params.bookingId, "luxuria_commission",
         process.env.LUXURIA_NAME || "Luxuria Trans Travel SRL",
         process.env.LUXURIA_SMARTBILL_VAT || "",
-        "ATPSOR", luxuriaCommission / (1 + TVA_RATE),
-        { errorText: String(err) }
+        "ATPSOR", luxuriaCommissionInRon / (1 + TVA_RATE),
+        { errorText: String(err) }, "RON", TVA_RATE
       );
     }
   }

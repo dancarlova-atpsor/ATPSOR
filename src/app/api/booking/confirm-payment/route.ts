@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // Fetch booking cu detalii
     const { data: booking, error: bookingError } = await serviceClient
       .from("bookings")
-      .select("*, company:companies(name, email, cui, smartbill_username, smartbill_token, smartbill_series, smartbill_proforma_series)")
+      .select("*, company:companies(name, email, cui, smartbill_username, smartbill_token, smartbill_series, smartbill_proforma_series, smartbill_series_external, is_vat_payer)")
       .eq("id", bookingId)
       .single();
 
@@ -79,8 +79,12 @@ export async function POST(request: Request) {
 
     // Emite factura fiscala (din proforma) + marcheaza incasata + factura comision
     if (comp?.smartbill_username && comp?.smartbill_token) {
+      const isIntl = bookingAny.is_international === true;
+      const isVatPayer = comp?.is_vat_payer !== false;
+      const effectiveVatRate = (isIntl || !isVatPayer) ? 0 : 0.21;
       const subtotalWithVat = totalPrice * 0.95;
-      const subtotalNoVat = subtotalWithVat / 1.21;
+      const subtotalNoVat = subtotalWithVat / (1 + effectiveVatRate);
+      const bookingCurrency = (bookingAny.currency_used || booking.currency || "RON").toUpperCase() as "RON" | "EUR";
       generateAllInvoices({
         bookingId: booking.id,
         subtotalWithVat,
@@ -93,13 +97,17 @@ export async function POST(request: Request) {
         transporterCui: comp.cui || "",
         transporterEmail: comp.email || "",
         transporterSeries: comp.smartbill_series || "",
+        transporterSeriesExternal: (comp as any).smartbill_series_external || "",
         transporterProformaSeries: comp.smartbill_proforma_series || "",
         transporterSmartBillUsername: comp.smartbill_username,
         transporterSmartBillToken: comp.smartbill_token,
+        transporterIsVatPayer: isVatPayer,
         clientName,
         clientEmail,
         clientAddress,
         paymentMethod: "card", // emite factura incasata + comision
+        isInternational: isIntl,
+        currency: bookingCurrency,
       }).catch((err) => console.error("Invoice generation error:", err));
     }
 
