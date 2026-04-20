@@ -206,18 +206,35 @@ export function RequestTransportForm() {
         waypointsIntors.push(pickupCity);
       }
 
+      // Intermediarii pentru international: presupunem tara intermediara
+      // bazata pe tarile plecare/destinatie (cel mai frecvent se afla pe ruta)
+      const dusDistanceBody = {
+        waypoints: waypointsDus,
+        pickupCountry,
+        dropoffCountry,
+        // Intermediarii sunt pe ruta, deci oricare din cele 2 tari poate fi relevanta.
+        // Google cauta cu/fara tara si descopera singur.
+        intermediateCountry: pickupCountry !== dropoffCountry ? "" : pickupCountry,
+      };
+      const intorsDistanceBody = {
+        waypoints: waypointsIntors,
+        pickupCountry: dropoffCountry, // pentru retur, plecarea e destinatia initiala
+        dropoffCountry: pickupCountry,
+        intermediateCountry: pickupCountry !== dropoffCountry ? "" : pickupCountry,
+      };
+
       // Fetch distance from Google Maps API, vehicles, and pricing in parallel
       const [distanceDusRes, distanceIntorsRes, vehiclesRes, pricingRes] = await Promise.all([
         fetch("/api/distance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ waypoints: waypointsDus }),
+          body: JSON.stringify(dusDistanceBody),
         }).then((r) => r.json()).catch(() => ({ fallback: true })),
         effectiveRoundTrip
           ? fetch("/api/distance", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ waypoints: waypointsIntors }),
+              body: JSON.stringify(intorsDistanceBody),
             }).then((r) => r.json()).catch(() => ({ fallback: true }))
           : Promise.resolve(null),
         supabase
