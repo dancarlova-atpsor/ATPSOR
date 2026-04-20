@@ -647,20 +647,18 @@ export default function AdminDashboard() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {p.role === "transporter" ? (
-                      userCompany ? (
-                        <a href={`/ro/dashboard/admin/company/${userCompany.id}`} className="text-blue-600 hover:underline font-medium">
-                          {userCompany.name}
-                        </a>
-                      ) : (
-                        <span className="text-xs text-orange-500 italic">Fara companie inregistrata</span>
-                      )
+                    {userCompany ? (
+                      <a href={`/ro/dashboard/admin/company/${userCompany.id}`} className="text-blue-600 hover:underline font-medium">
+                        {userCompany.name}
+                      </a>
+                    ) : p.role === "transporter" ? (
+                      <span className="text-xs text-orange-500 italic">Fara companie inregistrata</span>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {p.role === "transporter" && userCompany ? (
+                    {userCompany ? (
                       userCompany.is_verified ? (
                         <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">✓ Verificat</span>
                       ) : userCompany.is_approved ? (
@@ -679,12 +677,12 @@ export default function AdminDashboard() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {p.role === "transporter" && userCompany && (
+                      {userCompany && (
                         <a
                           href={`/ro/dashboard/admin/company/${userCompany.id}`}
                           className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
                         >
-                          Verifica
+                          {userCompany.is_verified ? "Vezi" : "Verifica"}
                         </a>
                       )}
                       <select
