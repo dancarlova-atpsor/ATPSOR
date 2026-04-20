@@ -120,6 +120,16 @@ export const TVA_RATE = 0.21;
 export const PLATFORM_FEE_RATE = 0.05;
 export const MIN_KM_PER_DAY = 200;
 
+// Opțiuni pentru calculul prețului:
+// - isInternational=true → TVA 0% SDD (art. 294 CF)
+// - isVatPayer=false → TVA 0% (neplătitor TVA, art. 310 CF)
+// - currency: "RON" (default) sau "EUR" (doar pentru externe)
+export interface PriceOptions {
+  isInternational?: boolean;
+  isVatPayer?: boolean; // default true
+  currency?: "RON" | "EUR"; // default RON
+}
+
 export interface PriceCalculation {
   distanceOneWay: number;
   totalKmReal: number;
@@ -128,9 +138,21 @@ export interface PriceCalculation {
   tariffPerKm: number;
   subtotalNoVat: number;
   tva: number;
+  vatRate: number; // cota efectivă (0 sau 21)
   subtotalWithVat: number;
   platformFee: number;
   totalPrice: number;
+  currency: "RON" | "EUR";
+  vatReason?: "plin" | "sdd_extern" | "neplatitor_tva";
+}
+
+function resolveVatRate(opts: PriceOptions | undefined): { rate: number; reason: PriceCalculation["vatReason"] } {
+  const isInternational = opts?.isInternational ?? false;
+  const isVatPayer = opts?.isVatPayer ?? true;
+
+  if (isInternational) return { rate: 0, reason: "sdd_extern" };
+  if (!isVatPayer) return { rate: 0, reason: "neplatitor_tva" };
+  return { rate: TVA_RATE, reason: "plin" };
 }
 
 export function calculatePrice(
@@ -139,11 +161,12 @@ export function calculatePrice(
   isRoundTrip: boolean,
   days: number,
   vehicleCategory: string,
+  opts?: PriceOptions,
 ): PriceCalculation | null {
   const tariffPerKm = TARIFFS[vehicleCategory];
   if (!tariffPerKm) return null;
 
-  return calculatePriceCustom(fromCity, toCity, isRoundTrip, days, tariffPerKm, MIN_KM_PER_DAY);
+  return calculatePriceCustom(fromCity, toCity, isRoundTrip, days, tariffPerKm, MIN_KM_PER_DAY, opts);
 }
 
 // Calcul pret din km dati direct (de la Google Maps API)
@@ -153,6 +176,7 @@ export function calculatePriceFromKm(
   days: number,
   tariffPerKm: number,
   minKmPerDay: number = MIN_KM_PER_DAY,
+  opts?: PriceOptions,
 ): PriceCalculation | null {
   if (totalKmOneWay <= 0) return null;
 
@@ -163,8 +187,11 @@ export function calculatePriceFromKm(
     ? Array.from({ length: days }, () => Math.max(kmPerDay, minKmPerDay)).reduce((a, b) => a + b, 0)
     : Math.max(totalKmReal, minKmPerDay);
 
+  const { rate: vatRate, reason: vatReason } = resolveVatRate(opts);
+  const currency = opts?.currency || "RON";
+
   const subtotalNoVat = totalKmBillable * tariffPerKm;
-  const tva = subtotalNoVat * TVA_RATE;
+  const tva = subtotalNoVat * vatRate;
   const subtotalWithVat = subtotalNoVat + tva;
   const platformFee = subtotalWithVat * PLATFORM_FEE_RATE;
   const totalPrice = subtotalWithVat + platformFee;
@@ -177,9 +204,12 @@ export function calculatePriceFromKm(
     tariffPerKm,
     subtotalNoVat,
     tva,
+    vatRate: vatRate * 100,
     subtotalWithVat,
     platformFee,
     totalPrice,
+    currency,
+    vatReason,
   };
 }
 
@@ -191,6 +221,7 @@ export function calculatePriceCustom(
   days: number,
   tariffPerKm: number,
   minKmPerDay: number = MIN_KM_PER_DAY,
+  opts?: PriceOptions,
 ): PriceCalculation | null {
   const distanceOneWay = getDistanceKm(fromCity, toCity);
   if (distanceOneWay === null) return null;
@@ -204,8 +235,11 @@ export function calculatePriceCustom(
     ? Array.from({ length: days }, () => Math.max(kmPerDay, minKmPerDay)).reduce((a, b) => a + b, 0)
     : Math.max(totalKmReal, minKmPerDay);
 
+  const { rate: vatRate, reason: vatReason } = resolveVatRate(opts);
+  const currency = opts?.currency || "RON";
+
   const subtotalNoVat = totalKmBillable * tariffPerKm;
-  const tva = subtotalNoVat * TVA_RATE;
+  const tva = subtotalNoVat * vatRate;
   const subtotalWithVat = subtotalNoVat + tva;
   const platformFee = subtotalWithVat * PLATFORM_FEE_RATE;
   const totalPrice = subtotalWithVat + platformFee;
@@ -218,8 +252,11 @@ export function calculatePriceCustom(
     tariffPerKm,
     subtotalNoVat,
     tva,
+    vatRate: vatRate * 100,
     subtotalWithVat,
     platformFee,
     totalPrice,
+    currency,
+    vatReason,
   };
 }
