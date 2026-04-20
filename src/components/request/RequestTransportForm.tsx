@@ -27,6 +27,26 @@ import { calculatePrice, calculatePriceCustom, calculatePriceFromKm, TARIFFS, PL
 import { createClient } from "@/lib/supabase/client";
 import ContractPreview from "@/components/contract/ContractPreview";
 
+// Lista scurtă de țări UE frecvente (extinsă ușor la nevoie)
+const COUNTRIES = [
+  { code: "RO", name: "România", flag: "🇷🇴" },
+  { code: "BG", name: "Bulgaria", flag: "🇧🇬" },
+  { code: "HU", name: "Ungaria", flag: "🇭🇺" },
+  { code: "AT", name: "Austria", flag: "🇦🇹" },
+  { code: "DE", name: "Germania", flag: "🇩🇪" },
+  { code: "IT", name: "Italia", flag: "🇮🇹" },
+  { code: "FR", name: "Franța", flag: "🇫🇷" },
+  { code: "ES", name: "Spania", flag: "🇪🇸" },
+  { code: "GR", name: "Grecia", flag: "🇬🇷" },
+  { code: "PL", name: "Polonia", flag: "🇵🇱" },
+  { code: "CZ", name: "Cehia", flag: "🇨🇿" },
+  { code: "SK", name: "Slovacia", flag: "🇸🇰" },
+  { code: "NL", name: "Olanda", flag: "🇳🇱" },
+  { code: "BE", name: "Belgia", flag: "🇧🇪" },
+  { code: "GB", name: "UK", flag: "🇬🇧" },
+  { code: "OTHER", name: "Altă țară", flag: "🌍" },
+];
+
 interface TransporterOption {
   vehicleId: string;
   vehicleName: string;
@@ -44,6 +64,8 @@ interface TransporterOption {
   companyEmail: string;
   companyStripeAccountId: string | null;
   companySmartbillSeries: string | null;
+  companySmartbillSeriesExternal: string | null;
+  companyIsVatPayer: boolean;
   companyContractUrl: string | null;
   companyContractName: string | null;
   estimatedPrice: number;
@@ -51,6 +73,10 @@ interface TransporterOption {
   platformFee: number;
   pricePerKm: number;
   totalKmBillable: number;
+  currency: "RON" | "EUR";
+  isInternational: boolean;
+  vatRate: number; // 0 sau 21
+  vatReason: string;
 }
 
 function getDayCount(dep: string, ret: string | null): number {
@@ -66,8 +92,13 @@ export function RequestTransportForm() {
   const router = useRouter();
 
   // Step 1 - search
+  const [pickupCountry, setPickupCountry] = useState("RO");
+  const [dropoffCountry, setDropoffCountry] = useState("RO");
   const [pickupCity, setPickupCity] = useState("");
   const [dropoffCity, setDropoffCity] = useState("");
+
+  const isInternational = pickupCountry !== "RO" || dropoffCountry !== "RO";
+  const currency: "RON" | "EUR" = isInternational ? "EUR" : "RON";
   const [passengers, setPassengers] = useState("");
   const [departureDate, setDepartureDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
@@ -212,23 +243,45 @@ export function RequestTransportForm() {
           rating: number; total_reviews: number; is_verified: boolean;
           cui: string; email: string; stripe_account_id: string | null;
           smartbill_series: string | null;
+          smartbill_series_external?: string | null;
+          is_vat_payer?: boolean;
+          price_per_km_external_eur?: number;
         } | null;
         if (!company) continue;
 
-        const customPricing = pricingMap.get(`${company.id}_${v.category}`);
-        const tariff = customPricing?.price_per_km || TARIFFS[v.category] || 7.50;
-        const minKm = customPricing?.min_km_per_day || 200;
+        // Pentru curse externe: folosim tariful EUR al transportatorului.
+        // Dacă transportatorul n-are tarif extern setat, îl excludem.
+        let tariff: number;
+        let minKm: number;
+        if (isInternational) {
+          const eurRate = Number(company.price_per_km_external_eur || 0);
+          if (!eurRate || eurRate <= 0) continue; // fără tarif extern → nu poate oferta
+          tariff = eurRate;
+          minKm = 200;
+        } else {
+          const customPricing = pricingMap.get(`${company.id}_${v.category}`);
+          tariff = customPricing?.price_per_km || TARIFFS[v.category] || 7.50;
+          minKm = customPricing?.min_km_per_day || 200;
+        }
+
+        const priceOpts = {
+          isInternational,
+          isVatPayer: company.is_vat_payer !== false, // default true
+          currency,
+        } as const;
 
         // Use Google Maps km if available, otherwise fallback to hardcoded
         let priceCalc;
         if (useGoogleMaps) {
-          // Google Maps returns total km for the full route (with intermediaries)
-          // For round trip, kmDus + kmIntors already calculated above
-          priceCalc = calculatePriceFromKm(googleTotalKm, false, dayCount, tariff, minKm);
+          priceCalc = calculatePriceFromKm(googleTotalKm, false, dayCount, tariff, minKm, priceOpts);
+        } else if (isInternational) {
+          // For international we don't have hardcoded RO→XX distances, only Google Maps
+          continue;
         } else {
+          const customPricing = pricingMap.get(`${company.id}_${v.category}`);
           priceCalc = customPricing
-            ? calculatePriceCustom(pickupCity, dropoffCity, isRoundTrip, dayCount, tariff, minKm)
-            : calculatePrice(pickupCity, dropoffCity, isRoundTrip, dayCount, v.category);
+            ? calculatePriceCustom(pickupCity, dropoffCity, isRoundTrip, dayCount, tariff, minKm, priceOpts)
+            : calculatePrice(pickupCity, dropoffCity, isRoundTrip, dayCount, v.category, priceOpts);
         }
         if (!priceCalc) continue;
 
@@ -249,6 +302,8 @@ export function RequestTransportForm() {
           companyEmail: company.email || "",
           companyStripeAccountId: company.stripe_account_id || null,
           companySmartbillSeries: company.smartbill_series || null,
+          companySmartbillSeriesExternal: company.smartbill_series_external || null,
+          companyIsVatPayer: company.is_vat_payer !== false,
           companyContractUrl: (company as any).contract_template_url || null,
           companyContractName: (company as any).contract_template_name || null,
           estimatedPrice: priceCalc.totalPrice,
@@ -256,6 +311,10 @@ export function RequestTransportForm() {
           platformFee: priceCalc.platformFee,
           pricePerKm: priceCalc.tariffPerKm,
           totalKmBillable: priceCalc.totalKmBillable,
+          currency: priceCalc.currency,
+          isInternational,
+          vatRate: priceCalc.vatRate,
+          vatReason: priceCalc.vatReason || "plin",
         });
       }
 
@@ -346,7 +405,10 @@ export function RequestTransportForm() {
             departureDate,
             returnDate: isRoundTrip ? returnDate : null,
             totalPrice: selected.estimatedPrice,
-            currency: "ron",
+            currency: selected.currency.toLowerCase(),
+            isInternational: selected.isInternational,
+            pickupCountry,
+            dropoffCountry,
             billingData,
             route,
             transporterName: selected.companyName,
@@ -373,7 +435,10 @@ export function RequestTransportForm() {
           offerId: `direct-${selected.vehicleId}-${Date.now()}`,
           subtotalWithVat: selected.subtotalWithVat,
           platformFee: selected.platformFee,
-          currency: "ron",
+          currency: selected.currency.toLowerCase(),
+          isInternational: selected.isInternational,
+          pickupCountry,
+          dropoffCountry,
           description: `Transport ${route}, ${departureDate}, ${passengers} pers. | ${selected.companyName}`,
           vehicleId: selected.vehicleId,
           companyId: selected.companyId,
@@ -384,7 +449,10 @@ export function RequestTransportForm() {
           transporterName: selected.companyName,
           transporterCui: selected.companyCui,
           transporterEmail: selected.companyEmail,
-          transporterSeries: selected.companySmartbillSeries || "",
+          transporterSeries: selected.isInternational
+            ? (selected.companySmartbillSeriesExternal || selected.companySmartbillSeries || "")
+            : (selected.companySmartbillSeries || ""),
+          transporterIsVatPayer: selected.companyIsVatPayer,
           route,
           totalKm: selected.totalKmBillable,
           pricePerKm: selected.pricePerKm,
@@ -418,33 +486,64 @@ export function RequestTransportForm() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Oraș plecare *</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary-500" />
-                <input
-                  type="text"
-                  value={pickupCity}
-                  onChange={(e) => setPickupCity(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                  placeholder="ex: București"
-                />
+              <div className="flex gap-2">
+                <select
+                  value={pickupCountry}
+                  onChange={(e) => setPickupCountry(e.target.value)}
+                  className="w-32 rounded-lg border border-gray-300 py-3 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  title="Țară plecare"
+                >
+                  {COUNTRIES.map(c => (<option key={c.code} value={c.code}>{c.flag} {c.code}</option>))}
+                </select>
+                <div className="relative flex-1">
+                  <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary-500" />
+                  <input
+                    type="text"
+                    value={pickupCity}
+                    onChange={(e) => setPickupCity(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    placeholder="ex: București"
+                  />
+                </div>
               </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Oraș sosire *</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-accent-500" />
-                <input
-                  type="text"
-                  value={dropoffCity}
-                  onChange={(e) => setDropoffCity(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                  placeholder="ex: Brașov"
-                />
+              <div className="flex gap-2">
+                <select
+                  value={dropoffCountry}
+                  onChange={(e) => setDropoffCountry(e.target.value)}
+                  className="w-32 rounded-lg border border-gray-300 py-3 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  title="Țară destinație"
+                >
+                  {COUNTRIES.map(c => (<option key={c.code} value={c.code}>{c.flag} {c.code}</option>))}
+                </select>
+                <div className="relative flex-1">
+                  <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-accent-500" />
+                  <input
+                    type="text"
+                    value={dropoffCity}
+                    onChange={(e) => setDropoffCity(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    placeholder="ex: Brașov"
+                  />
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Indicator cursă externă */}
+          {isInternational && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
+              <div className="font-semibold text-amber-900">✈️ Cursă internațională detectată</div>
+              <p className="mt-1 text-xs text-amber-700">
+                Prețurile vor fi calculate în <strong>EUR</strong>, factura va fi emisă cu <strong>TVA 0% SDD</strong> (Scutit cu Drept de Deducere, art. 294 Cod Fiscal).
+                Doar transportatorii care au setat tarif EUR/km pentru curse externe vor apărea.
+              </p>
+            </div>
+          )}
 
           {/* Passengers + dates */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -634,9 +733,11 @@ export function RequestTransportForm() {
                       <div className="shrink-0 text-right">
                         <div className="text-xs text-gray-400">{opt.totalKmBillable} km facturabili</div>
                         <div className="text-2xl font-bold text-primary-600">
-                          {Math.round(opt.estimatedPrice).toLocaleString()} RON
+                          {opt.currency === "EUR" ? opt.estimatedPrice.toFixed(2) : Math.round(opt.estimatedPrice).toLocaleString()} {opt.currency}
                         </div>
-                        <div className="text-xs text-gray-400">TVA inclus</div>
+                        <div className="text-xs text-gray-400">
+                          {opt.vatReason === "sdd_extern" ? "TVA 0% SDD" : opt.vatReason === "neplatitor_tva" ? "Neplătitor TVA" : "TVA inclus"}
+                        </div>
                         <button
                           onClick={() => selectTransporter(opt)}
                           className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
@@ -680,8 +781,12 @@ export function RequestTransportForm() {
           </div>
           <div className="mt-3 rounded-lg bg-green-100 px-4 py-2 text-center">
             <span className="text-sm text-gray-600">Total de plată: </span>
-            <span className="text-xl font-bold text-green-700">{Math.round(selected.estimatedPrice).toLocaleString()} RON</span>
-            <span className="ml-1 text-xs text-gray-400">(TVA inclus)</span>
+            <span className="text-xl font-bold text-green-700">
+              {selected.currency === "EUR" ? selected.estimatedPrice.toFixed(2) : Math.round(selected.estimatedPrice).toLocaleString()} {selected.currency}
+            </span>
+            <span className="ml-1 text-xs text-gray-400">
+              {selected.vatReason === "sdd_extern" ? "(TVA 0% SDD, art. 294 CF)" : selected.vatReason === "neplatitor_tva" ? "(Neplătitor TVA, art. 310 CF)" : "(TVA inclus)"}
+            </span>
           </div>
         </div>
 
@@ -852,7 +957,7 @@ export function RequestTransportForm() {
               <div className="rounded-lg bg-white p-4 border border-blue-200 space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">IBAN:</span><span className="font-mono font-medium">RO58 CECE B000 30RO N397 9534</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Banca:</span><span className="font-medium">CEC Bank</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Suma:</span><span className="font-bold text-red-600">{Math.round(selected.estimatedPrice).toLocaleString()} RON</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Suma:</span><span className="font-bold text-red-600">{selected.currency === "EUR" ? selected.estimatedPrice.toFixed(2) : Math.round(selected.estimatedPrice).toLocaleString()} {selected.currency}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Referință:</span><span className="font-mono font-bold text-primary-600">{bankDone.reference}</span></div>
               </div>
               <p className="mt-3 text-xs text-yellow-700 bg-yellow-50 rounded p-2">
@@ -886,7 +991,7 @@ export function RequestTransportForm() {
           >
             {payMethod === "card" ? <CreditCard className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}
             {paying ? "Se procesează..." : payMethod === "card"
-              ? `Plătește cu cardul ${Math.round(selected.estimatedPrice).toLocaleString()} RON`
+              ? `Plătește cu cardul ${selected.currency === "EUR" ? selected.estimatedPrice.toFixed(2) : Math.round(selected.estimatedPrice).toLocaleString()} ${selected.currency}`
               : "Rezervă cu transfer bancar"}
           </button>
           <p className="text-center text-xs text-gray-400">
