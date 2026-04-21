@@ -134,7 +134,7 @@ export default function LoginPage() {
 
           <div className="flex items-center justify-end">
             <Link
-              href="/auth/login"
+              href="/auth/forgot-password"
               className="text-sm text-primary-500 hover:text-primary-600"
             >
               {t("forgotPassword")}
