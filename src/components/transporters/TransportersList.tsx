@@ -55,99 +55,16 @@ export function TransportersList() {
 
   useEffect(() => {
     async function fetchTransporters() {
-      const supabase = createClient();
-
-      // Fetch companies, pricing, vehicles (cu poze), si docs in paralel
-      const [companiesRes, pricingRes, vehiclesRes, companyDocsRes] = await Promise.all([
-        supabase
-          .from("companies")
-          .select(
-            "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url, pickup_cities, created_at"
-          )
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("company_pricing")
-          .select("company_id, vehicle_category, price_per_km"),
-        supabase
-          .from("vehicles")
-          .select("company_id, photos")
-          .eq("is_active", true),
-        supabase
-          .from("company_documents")
-          .select("company_id"),
-      ]);
-
-      const companies = companiesRes.data ?? [];
-      const pricing = pricingRes.data ?? [];
-      const vehicles = vehiclesRes.data ?? [];
-      const companyDocs = companyDocsRes.data ?? [];
-
-      // Companii cu cel putin un document incarcat
-      const companiesWithDocs = new Set(
-        (companyDocs as { company_id: string }[]).map((d) => d.company_id)
-      );
-
-      // Companii cu cel putin un vehicul cu fotografii
-      const companiesWithPhotos = new Set<string>();
-      const vehicleCounts: Record<string, number> = {};
-      for (const v of vehicles as { company_id: string; photos: string[] | null }[]) {
-        vehicleCounts[v.company_id] = (vehicleCounts[v.company_id] || 0) + 1;
-        if (v.photos && Array.isArray(v.photos) && v.photos.length > 0) {
-          companiesWithPhotos.add(v.company_id);
+      // Folosim API public (service role) ca sa ocolim RLS pe company_documents
+      try {
+        const res = await fetch("/api/public/transporters", { cache: "no-store" });
+        const data = await res.json();
+        if (data.transporters) {
+          setTransporters(data.transporters as TransporterData[]);
         }
+      } catch (err) {
+        console.error("Failed to fetch transporters:", err);
       }
-
-      // Build pricing maps per company
-      const pricingByCompany: Record<
-        string,
-        { categories: VehicleCategory[]; priceMap: Record<string, number> }
-      > = {};
-      for (const p of pricing) {
-        if (!pricingByCompany[p.company_id]) {
-          pricingByCompany[p.company_id] = { categories: [], priceMap: {} };
-        }
-        const entry = pricingByCompany[p.company_id];
-        if (!entry.categories.includes(p.vehicle_category as VehicleCategory)) {
-          entry.categories.push(p.vehicle_category as VehicleCategory);
-        }
-        entry.priceMap[p.vehicle_category] = p.price_per_km;
-      }
-
-      // Filtram: doar companii care au documente incarcate SI cel putin un vehicul cu poze
-      const eligibleCompanies = companies.filter(
-        (c) => companiesWithDocs.has(c.id) && companiesWithPhotos.has(c.id)
-      );
-
-      // Map to the shape the UI expects
-      const mapped: TransporterData[] = eligibleCompanies.map((c) => ({
-        id: c.id,
-        name: c.name ?? "",
-        city: c.city ?? "",
-        county: c.county ?? "",
-        rating: c.rating ?? 0,
-        total_reviews: c.total_reviews ?? 0,
-        is_verified: c.is_verified ?? false,
-        description: c.description ?? "",
-        phone: c.phone ?? "",
-        email: c.email ?? "",
-        logo_url: c.logo_url ?? null,
-        vehicles_count: vehicleCounts[c.id] ?? 0,
-        categories: pricingByCompany[c.id]?.categories ?? [],
-        price_per_km: pricingByCompany[c.id]?.priceMap ?? {},
-        pickup_cities: c.pickup_cities ?? [],
-        created_at: c.created_at ?? "",
-      }));
-
-      // Ordine: data inscrierii (cei mai vechi primii)
-      // Luxuria Trans & Travel ramane mereu prima (operator platforma)
-      mapped.sort((a, b) => {
-        const aIsLuxuria = a.name.toLowerCase().includes("luxuria") ? 1 : 0;
-        const bIsLuxuria = b.name.toLowerCase().includes("luxuria") ? 1 : 0;
-        if (aIsLuxuria !== bIsLuxuria) return bIsLuxuria - aIsLuxuria;
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      });
-
-      setTransporters(mapped);
       setLoading(false);
     }
 
