@@ -50,7 +50,7 @@ const VEHICLE_DOC_TYPES = [
 export default function TransporterDashboard() {
   const t = useTranslations();
   const router = useRouter();
-  const validTabs = ["requests", "offers", "vehicles", "invoices", "reports", "documents", "pricing", "profile"] as const;
+  const validTabs = ["requests", "offers", "bookings", "vehicles", "invoices", "reports", "documents", "pricing", "profile"] as const;
   type TabType = typeof validTabs[number];
   const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
   const initialTab = validTabs.includes(hashTab as TabType) ? (hashTab as TabType) : "requests";
@@ -64,6 +64,8 @@ export default function TransporterDashboard() {
   const [vehicleDocs, setVehicleDocs] = useState<any[]>([]);
   const [myOffers, setMyOffers] = useState<any[]>([]);
   const [bookingsCount, setBookingsCount] = useState(0);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [updatingBooking, setUpdatingBooking] = useState<string | null>(null);
   const [revenue, setRevenue] = useState(0);
   const [togglingVehicle, setTogglingVehicle] = useState<string | null>(null);
   const [vehicleBlocks, setVehicleBlocks] = useState<any[]>([]);
@@ -193,8 +195,9 @@ export default function TransporterDashboard() {
           .order("created_at", { ascending: false }),
         supabase
           .from("bookings")
-          .select("total_price")
-          .eq("company_id", comp.id),
+          .select("*, vehicle:vehicles(name, seats), client:profiles(full_name, email, phone)")
+          .eq("company_id", comp.id)
+          .order("created_at", { ascending: false }),
         supabase
           .from("company_pricing")
           .select("*")
@@ -222,6 +225,7 @@ export default function TransporterDashboard() {
       if (offersRes.data) setMyOffers(offersRes.data);
       if (pricingRes.data) setPricing(pricingRes.data);
       if (bookingsRes.data) {
+        setBookings(bookingsRes.data);
         setBookingsCount(bookingsRes.data.length);
         setRevenue(
           bookingsRes.data.reduce(
@@ -755,6 +759,11 @@ export default function TransporterDashboard() {
       key: "offers" as const,
       label: t("dashboard.transporter.myOffers"),
       icon: MessageSquare,
+    },
+    {
+      key: "bookings" as const,
+      label: "Rezervări",
+      icon: CalendarCheck,
     },
     {
       key: "invoices" as const,
@@ -1505,6 +1514,125 @@ export default function TransporterDashboard() {
                 </span>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {activeTab === "bookings" && (
+        <div className="space-y-4">
+          <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
+            <p><strong>Rezervări pentru {company?.name}</strong> — gestionează statusul fiecărei curse (confirmare, finalizare, anulare).</p>
+          </div>
+
+          {bookings.length === 0 ? (
+            <div className="rounded-xl bg-white p-12 text-center shadow-md">
+              <CalendarCheck className="mx-auto h-12 w-12 text-gray-300" />
+              <p className="mt-3 text-gray-500">Nicio rezervare încă.</p>
+            </div>
+          ) : (
+            bookings.map((b) => {
+              const statusConfig: Record<string, { label: string; color: string }> = {
+                pending_payment: { label: "⏳ În așteptarea plății", color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+                confirmed: { label: "✓ Confirmată", color: "bg-green-50 text-green-700 border-green-200" },
+                in_progress: { label: "🚌 În desfășurare", color: "bg-blue-50 text-blue-700 border-blue-200" },
+                completed: { label: "✅ Finalizată", color: "bg-gray-100 text-gray-700 border-gray-300" },
+                cancelled: { label: "✗ Anulată", color: "bg-red-50 text-red-700 border-red-200" },
+              };
+              const currentStatus = statusConfig[b.status] || { label: b.status, color: "bg-gray-100 text-gray-600 border-gray-200" };
+              const route = b.pickup_city && b.dropoff_city ? `${b.pickup_city} → ${b.dropoff_city}` : "Transport";
+              const currency = (b.currency_used || b.currency || "RON").toUpperCase();
+
+              async function updateStatus(newStatus: string) {
+                setUpdatingBooking(b.id);
+                const supabase = createClient();
+                const { error } = await supabase
+                  .from("bookings")
+                  .update({ status: newStatus })
+                  .eq("id", b.id);
+                if (error) alert(`Eroare: ${error.message}`);
+                else {
+                  setBookings((list) => list.map((x) => x.id === b.id ? { ...x, status: newStatus } : x));
+                }
+                setUpdatingBooking(null);
+              }
+
+              return (
+                <div key={b.id} className="rounded-xl bg-white p-5 shadow-md">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-gray-900 text-lg">{route}</span>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-medium ${currentStatus.color}`}>
+                          {currentStatus.label}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 gap-1 text-sm text-gray-600 sm:grid-cols-2">
+                        <div><strong>Client:</strong> {b.client_name || b.client?.full_name || "—"}</div>
+                        <div><strong>Email:</strong> {b.client_email || b.client?.email || "—"}</div>
+                        <div><strong>Data plecării:</strong> {b.departure_date || "—"}{b.return_date ? ` → ${b.return_date}` : ""}</div>
+                        <div><strong>Vehicul:</strong> {b.vehicle?.name || "—"} {b.vehicle?.seats ? `(${b.vehicle.seats} locuri)` : ""}</div>
+                        {b.client_address && <div className="sm:col-span-2"><strong>Adresa:</strong> {b.client_address}</div>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-primary-600">
+                        {currency === "EUR" ? Number(b.total_price).toFixed(2) : Math.round(Number(b.total_price)).toLocaleString()} {currency}
+                      </div>
+                      {b.is_international && (
+                        <div className="text-xs text-amber-600">TVA 0% SDD (extern)</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actiuni status */}
+                  <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+                    {b.status === "pending_payment" && (
+                      <button
+                        onClick={() => updateStatus("confirmed")}
+                        disabled={updatingBooking === b.id}
+                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        ✓ Confirmă plata primită
+                      </button>
+                    )}
+                    {b.status === "confirmed" && (
+                      <button
+                        onClick={() => updateStatus("in_progress")}
+                        disabled={updatingBooking === b.id}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        🚌 Cursa a început
+                      </button>
+                    )}
+                    {b.status === "in_progress" && (
+                      <button
+                        onClick={() => updateStatus("completed")}
+                        disabled={updatingBooking === b.id}
+                        className="rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                      >
+                        ✅ Marchează finalizată
+                      </button>
+                    )}
+                    {(b.status === "pending_payment" || b.status === "confirmed") && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Sigur anulezi rezervarea? Clientul va fi notificat.")) {
+                            updateStatus("cancelled");
+                          }
+                        }}
+                        disabled={updatingBooking === b.id}
+                        className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        ✗ Anulează
+                      </button>
+                    )}
+                    <div className="ml-auto text-xs text-gray-400">
+                      ID: {b.id.substring(0, 8).toUpperCase()} • Creat: {new Date(b.created_at).toLocaleDateString("ro-RO")}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}
