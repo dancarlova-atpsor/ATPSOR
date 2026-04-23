@@ -763,77 +763,32 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right text-sm">
-                      <div>
-                        Rating:{" "}
-                        <span className="font-medium">
-                          {c.rating || 0}
-                        </span>
-                        /5
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {c.total_reviews} review-uri
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={`/dashboard/admin/company/${c.id}` as any}
-                        className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700"
-                      >
-                        Vezi detalii
-                      </Link>
-                      {!c.is_approved && (
-                        <button onClick={() => approveCompany(c.id)}
-                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
-                          Aprobă
-                        </button>
-                      )}
-                      <button
-                        onClick={() => toggleCompanyVerification(c.id, c.is_verified)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                          c.is_verified ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-green-50 text-green-600 hover:bg-green-100"
-                        }`}>
-                        {c.is_verified ? "Anulează verificare" : "Verifică"}
-                      </button>
-                      {c.is_approved && (
-                        <button onClick={() => suspendCompany(c.id)}
-                          className="rounded-lg bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100">
-                          Suspendă
-                        </button>
-                      )}
-                      <button onClick={() => deleteCompany(c.id, c.name)}
-                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100">
-                        Șterge
-                      </button>
-                    </div>
-                  </div>
-                  {/* Status badges */}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.is_approved ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-700"}`}>
-                      {c.is_approved ? "✓ Aprobat (cont activ)" : "⏸ Neaprobat"}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.is_verified ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
-                      {c.is_verified ? "✓ Verificat (apare public)" : "○ Neverificat (NU apare public)"}
-                    </span>
-                    {(() => {
-                      const hasVehiclePhotos = vehicles.some((v) => v.company_id === c.id && Array.isArray((v as any).photos) && (v as any).photos.length > 0);
-                      const hasCompanyDocs = companyDocs.some((d) => d.company_id === c.id);
-                      const problems: string[] = [];
-                      if (!hasCompanyDocs) problems.push("fara documente companie");
-                      if (!hasVehiclePhotos) problems.push("fara poze vehicule");
-                      if (problems.length > 0) {
+                      {(() => {
+                        const hasVehiclePhotos = vehicles.some((v) => v.company_id === c.id && Array.isArray((v as any).photos) && (v as any).photos.length > 0);
+                        const hasCompanyDocs = companyDocs.some((d) => d.company_id === c.id);
+                        const isPublic = c.is_verified && hasVehiclePhotos && hasCompanyDocs;
+
+                        if (isPublic) {
+                          return <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">✓ PUBLICĂ</span>;
+                        }
+                        const problems: string[] = [];
+                        if (!hasCompanyDocs) problems.push("fără documente");
+                        if (!hasVehiclePhotos) problems.push("fără poze vehicule");
+                        if (!c.is_verified) problems.push("neverificată de admin");
                         return (
-                          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700" title="Companie nu apare pe pagina publica din cauza acestor lipsuri">
-                            ⚠ {problems.join(" + ")}
-                          </span>
+                          <div>
+                            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">○ Nu apare public</span>
+                            <div className="mt-1 text-xs text-orange-700">{problems.join(" • ")}</div>
+                          </div>
                         );
-                      }
-                      return null;
-                    })()}
-                    {c.rejection_reason && (
-                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
-                        Motiv: {c.rejection_reason}
-                      </span>
-                    )}
+                      })()}
+                    </div>
+                    <Link
+                      href={`/dashboard/admin/company/${c.id}` as any}
+                      className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                    >
+                      Deschide companie →
+                    </Link>
                   </div>
                 </div>
                 {/* Company vehicles */}

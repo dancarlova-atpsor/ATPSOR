@@ -78,6 +78,25 @@ export default function AdminCompanyDetailsPage() {
     loadData();
   }
 
+  // Actiune unica: aproba + verifica compania ca sa apara public
+  async function approveAndPublish(companyId: string) {
+    const supabase = createClient();
+    await supabase.from("companies").update({
+      is_approved: true,
+      is_verified: true,
+      rejection_reason: null,
+    }).eq("id", companyId);
+    loadData();
+  }
+
+  async function unpublishCompany(companyId: string) {
+    const supabase = createClient();
+    await supabase.from("companies").update({
+      is_verified: false,
+    }).eq("id", companyId);
+    loadData();
+  }
+
   if (loading) {
     return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-purple-500" /></div>;
   }
@@ -138,6 +157,87 @@ export default function AdminCompanyDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Status & Actiune publicare */}
+      {(() => {
+        const hasVehiclePhotos = vehicles.some((v: any) => Array.isArray(v.photos) && v.photos.length > 0);
+        const hasCompanyDocs = companyDocs.length > 0;
+        const isPublic = company.is_verified && hasVehiclePhotos && hasCompanyDocs;
+        const problems: string[] = [];
+        if (!hasCompanyDocs) problems.push("nicio documenta de companie incarcata");
+        if (!hasVehiclePhotos) problems.push("niciun vehicul nu are fotografii");
+
+        return (
+          <div className={`mb-6 rounded-xl border-2 p-6 ${isPublic ? "border-green-300 bg-green-50" : "border-orange-300 bg-orange-50"}`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {isPublic ? (
+                    <>
+                      <span className="text-2xl">✓</span>
+                      <h3 className="text-xl font-bold text-green-900">Companie PUBLICĂ</h3>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl">○</span>
+                      <h3 className="text-xl font-bold text-orange-900">Compania NU apare pe pagina publică</h3>
+                    </>
+                  )}
+                </div>
+                {isPublic ? (
+                  <p className="mt-2 text-sm text-green-800">
+                    Compania este aprobată și verificată. Apare pe <strong>atpsor.ro/transporters</strong> și poate primi cereri de la clienți.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-2 text-sm text-orange-800">
+                      Pentru a apărea public, trebuie ca:
+                    </p>
+                    <ul className="mt-1 ml-6 list-disc text-sm text-orange-800">
+                      <li className={hasCompanyDocs ? "text-green-700" : ""}>
+                        {hasCompanyDocs ? "✓" : "✗"} Să existe cel puțin un <strong>document de companie</strong> încărcat
+                      </li>
+                      <li className={hasVehiclePhotos ? "text-green-700" : ""}>
+                        {hasVehiclePhotos ? "✓" : "✗"} Să existe cel puțin un <strong>vehicul cu fotografii</strong>
+                      </li>
+                      <li className={company.is_verified ? "text-green-700" : ""}>
+                        {company.is_verified ? "✓" : "✗"} Tu (admin) să apeși butonul <strong>Aprobă &amp; Publică</strong>
+                      </li>
+                    </ul>
+                  </>
+                )}
+              </div>
+              <div className="shrink-0">
+                {isPublic ? (
+                  <button
+                    onClick={() => {
+                      if (confirm("Scoți compania de pe pagina publică? Clienții nu o vor mai vedea.")) {
+                        unpublishCompany(company.id);
+                      }
+                    }}
+                    className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                  >
+                    Scoate de pe public
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => approveAndPublish(company.id)}
+                    disabled={!hasCompanyDocs || !hasVehiclePhotos}
+                    className={`rounded-lg px-6 py-3 text-base font-semibold shadow-md transition ${
+                      hasCompanyDocs && hasVehiclePhotos
+                        ? "bg-green-600 text-white hover:bg-green-700"
+                        : "cursor-not-allowed bg-gray-300 text-gray-500"
+                    }`}
+                    title={!hasCompanyDocs || !hasVehiclePhotos ? "Completează docs + poze înainte" : ""}
+                  >
+                    ✓ Aprobă &amp; Publică
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stats */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
