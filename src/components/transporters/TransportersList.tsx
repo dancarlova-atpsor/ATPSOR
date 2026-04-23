@@ -34,6 +34,7 @@ interface TransporterData {
   categories: VehicleCategory[];
   price_per_km: Record<string, number>;
   pickup_cities: string[];
+  created_at: string;
 }
 
 const categoryLabels: Record<VehicleCategory, string> = Object.fromEntries(
@@ -56,33 +57,44 @@ export function TransportersList() {
     async function fetchTransporters() {
       const supabase = createClient();
 
-      // Fetch companies, pricing, and vehicle counts in parallel
-      const [companiesRes, pricingRes, vehiclesRes] = await Promise.all([
+      // Fetch companies, pricing, vehicles (cu poze), si docs in paralel
+      const [companiesRes, pricingRes, vehiclesRes, companyDocsRes] = await Promise.all([
         supabase
           .from("companies")
           .select(
-            "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url, pickup_cities"
+            "id, name, city, county, rating, total_reviews, is_verified, description, phone, email, logo_url, pickup_cities, created_at"
           )
-          .order("is_verified", { ascending: false })
-          .order("rating", { ascending: false })
-          .order("name"),
+          .order("created_at", { ascending: true }),
         supabase
           .from("company_pricing")
           .select("company_id, vehicle_category, price_per_km"),
         supabase
           .from("vehicles")
-          .select("company_id")
+          .select("company_id, photos")
           .eq("is_active", true),
+        supabase
+          .from("company_documents")
+          .select("company_id"),
       ]);
 
       const companies = companiesRes.data ?? [];
       const pricing = pricingRes.data ?? [];
       const vehicles = vehiclesRes.data ?? [];
+      const companyDocs = companyDocsRes.data ?? [];
 
-      // Build vehicle counts per company
+      // Companii cu cel putin un document incarcat
+      const companiesWithDocs = new Set(
+        (companyDocs as { company_id: string }[]).map((d) => d.company_id)
+      );
+
+      // Companii cu cel putin un vehicul cu fotografii
+      const companiesWithPhotos = new Set<string>();
       const vehicleCounts: Record<string, number> = {};
-      for (const v of vehicles) {
+      for (const v of vehicles as { company_id: string; photos: string[] | null }[]) {
         vehicleCounts[v.company_id] = (vehicleCounts[v.company_id] || 0) + 1;
+        if (v.photos && Array.isArray(v.photos) && v.photos.length > 0) {
+          companiesWithPhotos.add(v.company_id);
+        }
       }
 
       // Build pricing maps per company
@@ -101,8 +113,13 @@ export function TransportersList() {
         entry.priceMap[p.vehicle_category] = p.price_per_km;
       }
 
+      // Filtram: doar companii care au documente incarcate SI cel putin un vehicul cu poze
+      const eligibleCompanies = companies.filter(
+        (c) => companiesWithDocs.has(c.id) && companiesWithPhotos.has(c.id)
+      );
+
       // Map to the shape the UI expects
-      const mapped: TransporterData[] = companies.map((c) => ({
+      const mapped: TransporterData[] = eligibleCompanies.map((c) => ({
         id: c.id,
         name: c.name ?? "",
         city: c.city ?? "",
@@ -118,15 +135,16 @@ export function TransportersList() {
         categories: pricingByCompany[c.id]?.categories ?? [],
         price_per_km: pricingByCompany[c.id]?.priceMap ?? {},
         pickup_cities: c.pickup_cities ?? [],
+        created_at: c.created_at ?? "",
       }));
 
-      // Luxuria Trans & Travel mereu prima, apoi verificati, apoi rating
+      // Ordine: data inscrierii (cei mai vechi primii)
+      // Luxuria Trans & Travel ramane mereu prima (operator platforma)
       mapped.sort((a, b) => {
         const aIsLuxuria = a.name.toLowerCase().includes("luxuria") ? 1 : 0;
         const bIsLuxuria = b.name.toLowerCase().includes("luxuria") ? 1 : 0;
         if (aIsLuxuria !== bIsLuxuria) return bIsLuxuria - aIsLuxuria;
-        if (a.is_verified !== b.is_verified) return a.is_verified ? -1 : 1;
-        return b.rating - a.rating;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
 
       setTransporters(mapped);
