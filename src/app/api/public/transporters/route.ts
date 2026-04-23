@@ -7,6 +7,10 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+// Force dynamic rendering — nu cacheuim, lista trebuie fresh de fiecare data
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function createServiceClient() {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
