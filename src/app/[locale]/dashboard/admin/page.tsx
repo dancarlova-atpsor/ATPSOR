@@ -807,10 +807,28 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   {/* Status badges */}
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.is_approved ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-700"}`}>
-                      {c.is_approved ? "Aprobat" : "Neaprobat"}
+                      {c.is_approved ? "✓ Aprobat (cont activ)" : "⏸ Neaprobat"}
                     </span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.is_verified ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
+                      {c.is_verified ? "✓ Verificat (apare public)" : "○ Neverificat (NU apare public)"}
+                    </span>
+                    {(() => {
+                      const hasVehiclePhotos = vehicles.some((v) => v.company_id === c.id && Array.isArray((v as any).photos) && (v as any).photos.length > 0);
+                      const hasCompanyDocs = companyDocs.some((d) => d.company_id === c.id);
+                      const problems: string[] = [];
+                      if (!hasCompanyDocs) problems.push("fara documente companie");
+                      if (!hasVehiclePhotos) problems.push("fara poze vehicule");
+                      if (problems.length > 0) {
+                        return (
+                          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700" title="Companie nu apare pe pagina publica din cauza acestor lipsuri">
+                            ⚠ {problems.join(" + ")}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                     {c.rejection_reason && (
                       <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
                         Motiv: {c.rejection_reason}
