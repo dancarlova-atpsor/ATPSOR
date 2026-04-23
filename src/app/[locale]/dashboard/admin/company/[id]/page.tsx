@@ -160,7 +160,10 @@ export default function AdminCompanyDetailsPage() {
 
       {/* Status & Actiune publicare */}
       {(() => {
-        const hasVehiclePhotos = vehicles.some((v: any) => Array.isArray(v.photos) && v.photos.length > 0);
+        const hasVehiclePhotos = vehicles.some((v: any) =>
+          (Array.isArray(v.photos) && v.photos.length > 0) ||
+          (Array.isArray(v.images) && v.images.length > 0)
+        );
         const hasCompanyDocs = companyDocs.length > 0;
         const isPublic = company.is_verified && hasVehiclePhotos && hasCompanyDocs;
         const problems: string[] = [];

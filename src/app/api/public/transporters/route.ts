@@ -31,7 +31,7 @@ export async function GET() {
         .select("company_id, vehicle_category, price_per_km"),
       supabase
         .from("vehicles")
-        .select("company_id, photos")
+        .select("company_id, photos, images")
         .eq("is_active", true),
       supabase.from("company_documents").select("company_id"),
     ]);
@@ -47,9 +47,12 @@ export async function GET() {
 
     const companiesWithPhotos = new Set<string>();
     const vehicleCounts: Record<string, number> = {};
-    for (const v of vehicles as { company_id: string; photos: string[] | null }[]) {
+    for (const v of vehicles as { company_id: string; photos: string[] | null; images: string[] | null }[]) {
       vehicleCounts[v.company_id] = (vehicleCounts[v.company_id] || 0) + 1;
-      if (v.photos && Array.isArray(v.photos) && v.photos.length > 0) {
+      // Acceptam atat 'photos' (coloana noua) cat si 'images' (coloana veche)
+      const hasPhotos = (Array.isArray(v.photos) && v.photos.length > 0) ||
+                        (Array.isArray(v.images) && v.images.length > 0);
+      if (hasPhotos) {
         companiesWithPhotos.add(v.company_id);
       }
     }

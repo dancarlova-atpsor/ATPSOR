@@ -764,7 +764,12 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3">
                     <div className="text-right text-sm">
                       {(() => {
-                        const hasVehiclePhotos = vehicles.some((v) => v.company_id === c.id && Array.isArray((v as any).photos) && (v as any).photos.length > 0);
+                        const hasVehiclePhotos = vehicles.some((v) =>
+                          v.company_id === c.id && (
+                            (Array.isArray((v as any).photos) && (v as any).photos.length > 0) ||
+                            (Array.isArray((v as any).images) && (v as any).images.length > 0)
+                          )
+                        );
                         const hasCompanyDocs = companyDocs.some((d) => d.company_id === c.id);
                         const isPublic = c.is_verified && hasVehiclePhotos && hasCompanyDocs;
 
