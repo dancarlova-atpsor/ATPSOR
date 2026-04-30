@@ -65,7 +65,7 @@ export function Header() {
   }
 
   function getDashboardHref() {
-    if (userRole === "admin") return "/dashboard/admin" as const;
+    if (userRole === "admin" || userRole === "inspector") return "/dashboard/admin" as const;
     if (userRole === "transporter") return "/dashboard/transporter" as const;
     return "/dashboard/client" as const;
   }
@@ -112,9 +112,11 @@ export function Header() {
               <LayoutDashboard className="h-4 w-4" />
               {userRole === "admin"
                 ? "Admin"
-                : userRole === "transporter"
-                  ? "Panou"
-                  : "Dashboard"}
+                : userRole === "inspector"
+                  ? "Inspector"
+                  : userRole === "transporter"
+                    ? "Panou"
+                    : "Dashboard"}
             </Link>
           )}
         </div>
@@ -181,7 +183,7 @@ export function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <LayoutDashboard className="mr-2 inline h-4 w-4" />
-                {userRole === "admin" ? "Admin Panel" : "Dashboard"}
+                {userRole === "admin" ? "Admin Panel" : userRole === "inspector" ? "Panou Inspector" : "Dashboard"}
               </Link>
             )}
             <hr className="my-2" />
