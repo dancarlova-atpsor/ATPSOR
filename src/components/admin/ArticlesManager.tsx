@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 
 const CATEGORIES = [
-  { value: "intalniri", label: "Intalniri" },
+  { value: "intalniri", label: "Întâlniri Asociație" },
+  { value: "intalniri-autoritati", label: "Întâlniri cu Autoritățile" },
   { value: "evenimente", label: "Evenimente" },
   { value: "comunicate", label: "Comunicate" },
   { value: "alte", label: "Altele" },
@@ -408,6 +409,7 @@ export default function ArticlesManager() {
                 <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                   <span className={`rounded-full px-2 py-0.5 font-medium ${
                     article.category === "intalniri" ? "bg-blue-100 text-blue-700" :
+                    article.category === "intalniri-autoritati" ? "bg-purple-100 text-purple-700" :
                     article.category === "evenimente" ? "bg-green-100 text-green-700" :
                     article.category === "comunicate" ? "bg-orange-100 text-orange-700" :
                     "bg-gray-100 text-gray-700"

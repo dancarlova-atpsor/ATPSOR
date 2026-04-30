@@ -32,6 +32,8 @@ export default function AdminCompanyDetailsPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any[]>([]);
   const [viewingDoc, setViewingDoc] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [userRole, setUserRole] = useState<string>("admin");
+  const isInspector = userRole === "inspector";
 
   useEffect(() => {
     loadData();
@@ -43,7 +45,8 @@ export default function AdminCompanyDetailsPage() {
     if (!user) { router.push("/auth/login"); return; }
 
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (profile?.role !== "admin") { router.push("/"); return; }
+    if (profile?.role !== "admin" && profile?.role !== "inspector") { router.push("/"); return; }
+    setUserRole(profile.role);
 
     const [companyRes, vehiclesRes, companyDocsRes, vehicleDocsRes, bookingsRes, pricingRes] = await Promise.all([
       supabase.from("companies").select("*, owner:profiles(*)").eq("id", id).single(),

@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
 import {
   Newspaper, Calendar, ArrowRight, Loader2, Filter,
-  Handshake, PartyPopper, Megaphone, MoreHorizontal,
+  Handshake, PartyPopper, Megaphone, MoreHorizontal, Building,
 } from "lucide-react";
 
 const CATEGORIES = [
   { key: "all", label: "Toate", icon: Filter },
-  { key: "intalniri", label: "Intalniri", icon: Handshake },
+  { key: "intalniri", label: "Întâlniri Asociație", icon: Handshake },
+  { key: "intalniri-autoritati", label: "Întâlniri cu Autoritățile", icon: Building },
   { key: "evenimente", label: "Evenimente", icon: PartyPopper },
   { key: "comunicate", label: "Comunicate", icon: Megaphone },
   { key: "alte", label: "Altele", icon: MoreHorizontal },
@@ -19,6 +20,7 @@ const CATEGORIES = [
 
 const CATEGORY_COLORS: Record<string, string> = {
   intalniri: "bg-blue-100 text-blue-700",
+  "intalniri-autoritati": "bg-purple-100 text-purple-700",
   evenimente: "bg-green-100 text-green-700",
   comunicate: "bg-orange-100 text-orange-700",
   alte: "bg-gray-100 text-gray-700",

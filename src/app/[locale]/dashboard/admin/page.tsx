@@ -38,6 +38,9 @@ export default function AdminDashboard() {
   >("overview");
   const [loading, setLoading] = useState(true);
   const [adminId, setAdminId] = useState<string>("");
+  const [userRole, setUserRole] = useState<string>("admin");
+  const isInspector = userRole === "inspector";
+  const canDelete = userRole === "admin"; // doar admin poate sterge
 
   // Data
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -71,12 +74,13 @@ export default function AdminDashboard() {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (profile?.role !== "admin" && profile?.role !== "inspector") {
       router.push("/dashboard/client");
       return;
     }
 
     setAdminId(user.id);
+    setUserRole(profile.role);
 
     const [
       profilesRes,
@@ -685,17 +689,24 @@ export default function AdminDashboard() {
                           {userCompany.is_verified ? "Vezi" : "Verifica"}
                         </a>
                       )}
-                      <select
-                        value={p.role}
-                        onChange={(e) =>
-                          updateProfileRole(p.id, e.target.value)
-                        }
-                        className="rounded border border-gray-300 px-2 py-1 text-xs"
-                      >
-                        <option value="client">Client</option>
-                        <option value="transporter">Transportator</option>
-                        <option value="admin">Admin</option>
-                      </select>
+                      {canDelete ? (
+                        <select
+                          value={p.role}
+                          onChange={(e) =>
+                            updateProfileRole(p.id, e.target.value)
+                          }
+                          className="rounded border border-gray-300 px-2 py-1 text-xs"
+                        >
+                          <option value="client">Client</option>
+                          <option value="transporter">Transportator</option>
+                          <option value="inspector">Inspector</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      ) : (
+                        <span className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-500">
+                          {p.role}
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
