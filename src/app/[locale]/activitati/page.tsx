@@ -124,17 +124,17 @@ export default function ActivitatiPage() {
               href={`/activitati/${article.slug}` as any}
               className="group overflow-hidden rounded-2xl bg-white shadow-md transition-all hover:shadow-xl"
             >
-              {/* Cover Image */}
+              {/* Cover Image — aspect 4:3 ca sa nu taie capetele oamenilor */}
               {article.cover_image ? (
-                <div className="aspect-video overflow-hidden">
+                <div className="aspect-[4/3] overflow-hidden bg-gray-100">
                   <img
                     src={article.cover_image}
                     alt={article.title}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    className="h-full w-full object-cover object-center transition-transform group-hover:scale-105"
                   />
                 </div>
               ) : (
-                <div className="flex aspect-video items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
+                <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
                   <Newspaper className="h-12 w-12 text-primary-400" />
                 </div>
               )}

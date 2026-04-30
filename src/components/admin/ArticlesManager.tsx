@@ -125,8 +125,13 @@ export default function ArticlesManager() {
   }
 
   async function handleSave() {
+    console.log("[ArticlesManager] handleSave called", { form, hasCoverFile: !!coverFile, imagesCount: imageFiles.length });
+
     if (!form.title || !form.content || !form.slug) {
-      setMessage({ type: "error", text: "Titlul, slug-ul si continutul sunt obligatorii" });
+      const msg = `Titlul, slug-ul si continutul sunt obligatorii. Title=${!!form.title} Slug=${!!form.slug} Content=${!!form.content}`;
+      setMessage({ type: "error", text: msg });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      alert(msg);
       return;
     }
 
@@ -137,15 +142,24 @@ export default function ArticlesManager() {
       // Upload cover image
       let coverUrl = coverPreview;
       if (coverFile) {
+        console.log("[ArticlesManager] uploading cover...");
         const result = await uploadFile(coverFile, "articles/covers");
-        if (result) coverUrl = result.url;
+        if (result) {
+          coverUrl = result.url;
+          console.log("[ArticlesManager] cover uploaded:", coverUrl);
+        } else {
+          console.error("[ArticlesManager] cover upload returned null");
+          throw new Error("Nu s-a putut încărca poza de copertă (verifică dimensiunea — max 5MB).");
+        }
       }
 
       // Upload gallery images
       const uploadedImages = [...existingImages];
       for (const file of imageFiles) {
+        console.log("[ArticlesManager] uploading gallery image:", file.name);
         const result = await uploadFile(file, "articles/gallery");
         if (result) uploadedImages.push(result.url);
+        else throw new Error(`Nu s-a putut încărca poza ${file.name}`);
       }
 
       const supabase = createClient();
@@ -182,7 +196,11 @@ export default function ArticlesManager() {
       resetForm();
       fetchArticles();
     } catch (err: any) {
-      setMessage({ type: "error", text: err.message || "Eroare la salvare" });
+      console.error("[ArticlesManager] save error:", err);
+      const errMsg = err?.message || err?.toString() || "Eroare necunoscuta la salvare";
+      setMessage({ type: "error", text: errMsg });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      alert(`Eroare la salvarea articolului:\n\n${errMsg}\n\nDeschide Console (F12) pentru detalii complete.`);
     }
 
     setSaving(false);
@@ -223,8 +241,8 @@ export default function ArticlesManager() {
         </div>
 
         {message && (
-          <div className={`rounded-lg p-3 text-sm ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-            {message.text}
+          <div className={`sticky top-0 z-50 rounded-lg p-4 text-sm font-semibold shadow-lg ${message.type === "success" ? "bg-green-100 text-green-800 border-2 border-green-400" : "bg-red-100 text-red-800 border-2 border-red-400"}`}>
+            {message.type === "error" ? "❌ " : "✅ "}{message.text}
           </div>
         )}
 
