@@ -55,7 +55,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadData();
-  }, [router]);
+  }, []);
 
   async function loadData() {
     const supabase = createClient();
@@ -74,10 +74,11 @@ export default function AdminDashboard() {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin" && profile?.role !== "inspector") {
+    if (profile && profile.role !== "admin" && profile.role !== "inspector") {
       router.push("/dashboard/client");
       return;
     }
+    if (!profile) return;
 
     setAdminId(user.id);
     setUserRole(profile.role);
