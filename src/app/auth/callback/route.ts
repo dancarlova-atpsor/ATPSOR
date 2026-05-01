@@ -24,7 +24,9 @@ export async function GET(request: Request) {
         const dashboard =
           profile?.role === "transporter"
             ? "/ro/dashboard/transporter"
-            : "/ro/dashboard/client";
+            : profile?.role === "admin" || profile?.role === "inspector"
+              ? "/ro/dashboard/admin"
+              : "/ro/dashboard/client";
         return NextResponse.redirect(`${origin}${dashboard}`);
       }
 

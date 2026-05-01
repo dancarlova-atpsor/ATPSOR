@@ -82,8 +82,8 @@ export async function middleware(request: NextRequest) {
 
     // Admin can access all dashboards (admin, transporter, client)
 
-    // Non-admins can't access admin dashboard
-    if (isAdminRoute && profile?.role !== "admin") {
+    // Non-admins (except inspector) can't access admin dashboard
+    if (isAdminRoute && profile?.role !== "admin" && profile?.role !== "inspector") {
       const dashboard = profile?.role === "transporter" ? "transporter" : "client";
       const redirectResponse = NextResponse.redirect(
         new URL(`/${locale}/dashboard/${dashboard}`, request.url)
