@@ -714,7 +714,435 @@ src/
 
 ---
 
-## 27. CHANGELOG MAJOR (cronologic)
+## 27. ONBOARDING TRANSPORTATOR — fluxul detaliat
+
+### Pas 1: Înregistrare cont
+- Pagina: `/auth/register`
+- Câmpuri obligatorii:
+  - Email + parolă
+  - Nume complet (full_name)
+  - Telefon
+  - **Selectare rol:** "Transportator" (alternativ: "Client")
+- Pentru rol transportator, se afișează câmpuri suplimentare:
+  - **CUI companie** (cu verificare ANAF live, auto-completează nume + adresă)
+  - Nume companie
+  - Județ + oraș sediu
+  - Adresă sediu
+  - Telefon companie
+  - Pickup cities (orașe de unde plecă curse — multi-select)
+- La submit:
+  1. `supabase.auth.signUp()` creează `auth.users` row
+  2. **Manual** se creează row în `profiles` cu rol = "transporter"
+  3. **Manual** se creează row în `companies` cu owner_id = user.id
+- **TRIGGER LIPSĂ:** Nu există trigger automat la signup care să creeze profile. Trebuie făcut manual în pagina register. **Verifică în cod dacă creează corect ambele.**
+
+### Pas 2: Login + completare profil
+- După login, transportatorul ajunge pe `/dashboard/transporter`
+- Tab "Profil Companie" — completează:
+  - Logo companie (upload în Supabase Storage `logos/{companyId}/`)
+  - Descriere
+  - SmartBill credentials (username + token API + serii)
+  - Contract template URL (PDF cu contract-ul SRL-ului transportatorului — opțional)
+
+### Pas 3: Adăugare vehicule
+- Tab "Vehiculele Mele" → "Adaugă vehicul"
+- Câmpuri: nume, categorie (`autocar`, `microbuz`, etc.), seats, brand, model, year, features (tags)
+- Upload poze (multi-file → `vehicles.photos[]`)
+- Salvat → vehiculul devine activ
+
+### Pas 4: Setare tarife
+- Tab "Tarife" → completează preț/km RON pe fiecare categorie de vehicul deținută
+- Plus tarif EUR/km pentru curse externe (opțional)
+- Min km/zi (default 200)
+
+### Pas 5: Upload documente
+- Tab "Documente" → upload pe categorii:
+  - **Companie:** Licență Transport ARR (obligatoriu), Certificat constatator ONRC, Atestat licență comunitară (extern)
+  - **Vehicul (per vehicul):** Talon ITP valabil, Copie Conformă ARR, Asigurare Bagaje și Călători, Asigurare RCA
+- Fiecare document are `document_type` + `expiry_date` + URL Storage
+- Status: `is_verified` (admin/inspector verifică)
+
+### Pas 6: Aprobare admin
+- Admin/Inspector deschide companie → Vede status: docs ✓, poze ✓
+- Apasă **"Aprobă & Publică"** → setează `is_approved=true` AND `is_verified=true`
+- Companie apare pe `/transporters` (pagina publică)
+- **Email automat** către transportator cu manualul (`/api/notify-approval`)
+
+### Pas 7: Connect Stripe (TODO — neimplementat)
+- Pe `/dashboard/transporter/profil` ar trebui buton "Conectează Stripe"
+- Click → redirect Stripe Express Onboarding URL
+- Transportator completează: date firmă, KYC administrator, IBAN
+- Webhook salvează `stripe_account_id` în `companies`
+- **De implementat** (vezi TODO 🔴 secțiunea 24)
+
+---
+
+## 28. VEHICLE BLOCKS — Calendar disponibilitate
+
+### Tabela `vehicle_blocks`
+```sql
+id UUID
+vehicle_id UUID FK
+start_date DATE
+end_date DATE
+reason TEXT  -- "booking" | "maintenance" | "personal" | "other"
+booking_reference TEXT  -- ex: "bank-{booking_id}" sau "card-{booking_id}"
+created_at TIMESTAMPTZ
+```
+
+### Când se creează un block:
+
+1. **Automat la rezervare** (în `/api/booking/bank-transfer` și webhook Stripe):
+   ```ts
+   await serviceClient.from("vehicle_blocks").insert({
+     vehicle_id, start_date: departureDate, end_date: returnDate || departureDate,
+     reason: "booking", booking_reference: `bank-${booking.id}`
+   });
+   ```
+
+2. **Manual de transportator** (din Dashboard → Vehiculele Mele → calendar):
+   - Click pe data în calendar → adaugă block manual
+   - Useful pentru: revizii, curse private off-platform, vacanță proprietar
+
+### Cum se folosește:
+
+În `RequestTransportForm.tsx` la căutare, vehiculele sunt filtrate:
+```ts
+const { data: blocks } = await supabase.from("vehicle_blocks")
+  .select("vehicle_id")
+  .lte("start_date", endDate)
+  .gte("end_date", departureDate);  // overlap check
+const blockedIds = new Set(blocks.map(b => b.vehicle_id));
+// Apoi: vehicles.filter(v => !blockedIds.has(v.id))
+```
+
+Vehiculele cu block în intervalul cerut **NU apar** în lista de oferte.
+
+### Component vizualizare:
+`src/components/transporter/VehicleCalendar.tsx` — calendar lunar pe fiecare vehicul, cu blocks colorate.
+
+---
+
+## 29. STRIPE METADATA — Convenția pentru webhook
+
+### La crearea Checkout Session (`/api/stripe/checkout`)
+Se trimit ~20 câmpuri în `session.metadata` (Stripe permite max 50 keys, fiecare max 500 chars):
+
+```ts
+const metadata = {
+  // Identificare
+  offerId: "direct-{vehicleId}-{timestamp}" | "{offerId}",
+  userId: user.id,
+  vehicleId, companyId, requestId,
+
+  // Date cursă
+  departureDate, returnDate,
+  pickupCountry, dropoffCountry,
+  isInternational: "true" | undefined,
+  currency: "ron" | "eur",
+  route: "BUC → Brașov" (max 500),
+  totalKm: "1297",
+  pricePerKm: "1.785",
+  subtotalWithVat: "2313.36",
+  platformFee: "115.67",
+
+  // Billing client (pentru factură)
+  billing_name, billing_email, billing_address, billing_city, billing_county,
+
+  // Transportator (pentru facturare SmartBill)
+  transporterName, transporterCui, transporterEmail,
+  transporterSeries: "TRANS LEI" | "TRANS EURO",
+  transporterIsVatPayer: "true" | "false",
+  transporterAccountId: stripe_account_id (pentru Connect),
+};
+```
+
+### În webhook (`/api/stripe/webhook`)
+
+La eveniment `checkout.session.completed`:
+1. Citește `session.metadata`
+2. Verifică `companyId` → fetch credentialele SmartBill din DB (parolele NU sunt în metadata, sunt în DB)
+3. Apelează `generateAllInvoices()` care emite cele 3 facturi
+4. Salvează `bookings` row dacă e flow direct (offerId începe cu "direct-")
+5. Sau actualizează booking existent dacă e flow ofertă
+
+**Două flow-uri în webhook:**
+- **Direct flow** (search rapidă): `offerId.startsWith("direct-")` → creează booking nou + factură
+- **Offer flow** (din ofertă selectată): `offerId` e UUID real → actualizează booking + factură
+
+### CRITIC pentru testing
+Dacă lipsește un câmp din metadata → factura nu se emite corect. Verifică **TOATE** câmpurile când debugezi probleme cu webhook.
+
+---
+
+## 30. NOTIFICĂRI EMAIL — Când se trimit
+
+| Eveniment | Cui | Trigger | Conținut |
+|---|---|---|---|
+| **Rezervare confirmată (card)** | Client | După Stripe webhook success | Detalii rezervare + factură PDF atașat |
+| **Rezervare nouă** | Transportator | După Stripe webhook success / bank-transfer | Notificare cu detaliile clientului |
+| **Rezervare nouă** | Admin | După orice booking | Pentru monitorizare |
+| **Reset parolă** | User | Forgot password form | Link `/auth/reset-password?token=...` |
+| **Manual transportator** | Transportator | După aprobare admin | PDF + link dashboard |
+| **Proformă (transfer bancar)** | Client | Imediat după bank-transfer | PDF proforma SmartBill (sau email text-only fallback) |
+| **Factură fiscală** | Client | După confirm-payment (transfer bancar) sau Stripe success | PDF factură SmartBill |
+
+### Implementare
+- Toate prin Resend (`src/lib/emails.ts`)
+- From: `noreply@atpsor.ro`
+- Domain verificat în Resend Dashboard
+- Templates HTML inline în cod (nu pe Resend templates platform — stilizate cu inline CSS)
+
+### CE LIPSEȘTE (TODO)
+- Email când document urmează să expire (30/15/7 zile înainte) — necesită cron
+- Email când taxa anuală 500 RON urmează să expire — necesită cron + tabela cotizații
+- Email reminder pentru rezervările "in_progress" cu zile înainte de plecare
+- Newsletter ATPSOR (lunar) către transportatori
+
+---
+
+## 31. DOCUMENT EXPIRY TRACKING
+
+### Funcție DB existentă
+```sql
+CREATE OR REPLACE FUNCTION check_company_documents_valid(p_company_id UUID)
+RETURNS BOOLEAN AS $$
+  -- Verifică dacă toate documentele obligatorii sunt valide (nu expirate)
+  -- Folosit pentru a marca companii cu acte expirate
+$$ LANGUAGE plpgsql;
+```
+
+### Documente cu expirare (toate au `expiry_date`)
+- **Companie:**
+  - Licență Transport ARR (expiră anual sau cum e licența)
+  - Atestat profesional administrator
+  - Certificat constatator ONRC
+- **Vehicul:**
+  - ITP — anual sau 1-2 ani
+  - Copie Conformă ARR
+  - RCA — anual
+  - Asigurare bagaje și călători
+
+### În UI
+- Pagina admin detaliu companie afișează cu badge ROȘU "EXPIRAT" documentele expirate
+- Liniei document: `border-red-200 bg-red-50` dacă `expiry_date < today`
+- Companie cu acte expirate apare cu warning, dar **NU e ascunsă automat din public**
+
+### CE LIPSEȘTE (TODO important)
+- **Cron** care rulează zilnic și:
+  - Trimite email la transportator cu 30/15/7 zile înainte de expirare
+  - Trimite email la admin cu acte expirate
+  - Marchează automat companii cu acte expirate ca "needs_review"
+- Modificare `is_verified=false` automat dacă acte critice expiră
+
+---
+
+## 32. TABELA `company_pricing` — Tarife custom
+
+### Schema
+```sql
+company_pricing (
+  id UUID,
+  company_id UUID FK,
+  vehicle_category TEXT (autocar | microbuz | midiautocar | ...),
+  price_per_km NUMERIC,
+  min_km_per_day INTEGER DEFAULT 200,
+  UNIQUE(company_id, vehicle_category)
+)
+```
+
+### Cum funcționează
+
+1. Transportatorul setează în Dashboard → Tarife → un preț/km pentru fiecare categorie de vehicul deținută
+2. Salvat în `company_pricing` (un row per categorie)
+3. La căutare cursă, codul caută pricing custom:
+   ```ts
+   const customPricing = pricingMap.get(`${company.id}_${v.category}`);
+   const tariff = customPricing?.price_per_km || TARIFFS[v.category] || 7.50;
+   const minKm = customPricing?.min_km_per_day || 200;
+   ```
+4. **Fallback** la `TARIFFS` default (din `distances.ts`) dacă nu e setat
+
+### Pentru curse externe (EUR)
+- Tariful extern e pe `companies.price_per_km_external_eur` (single field, nu per categorie)
+- Toate vehiculele aceluiași transportator folosesc același tarif EUR
+
+---
+
+## 33. BOOKING LINKS — Generare token
+
+### Tabela `booking_links`
+```sql
+booking_links (
+  id UUID,
+  token UUID DEFAULT gen_random_uuid() UNIQUE,
+  company_id UUID FK,
+  vehicle_id UUID FK,
+  pickup_city, dropoff_city, departure_date, return_date,
+  total_price NUMERIC,
+  currency TEXT,
+  is_international BOOLEAN,
+  status TEXT ("pending" | "completed" | "cancelled"),
+  created_at, expires_at
+)
+```
+
+### Generare
+- Transportatorul creează un link de rezervare pentru un client cunoscut (negociat în privat)
+- `token` = UUID v4 random (122 bits entropy → imposibil de ghicit)
+- URL public: `https://atpsor.ro/ro/book/{token}`
+- Form: `src/components/transporter/BookingLinkForm.tsx`
+
+### Securitate
+- Token e SECRET — oricine îl are accesează rezervarea
+- **NU expune token-uri în log-uri sau URL-uri sensibile**
+- Token poate fi folosit de mai multe ori (link redeschis), dar status="completed" la prima plată reușită
+
+---
+
+## 34. PROFILE vs auth.users
+
+### Tabele Supabase Auth (gestionate de Supabase, NU le modifica)
+- `auth.users` — id, email, encrypted_password, last_sign_in_at, etc.
+- `auth.identities` — pentru OAuth (Google/Facebook dacă e activ)
+- `auth.sessions` — sesiunile active
+
+### Tabela noastră `profiles`
+```sql
+profiles (
+  id UUID PRIMARY KEY (= auth.users.id),  -- 1:1 mapping
+  email TEXT,                              -- duplicat din auth.users pentru ușurință query
+  full_name TEXT,
+  phone TEXT,
+  role TEXT CHECK (role IN ('client', 'transporter', 'admin', 'inspector')),
+  created_at TIMESTAMPTZ
+)
+```
+
+### Sync auth.users ↔ profiles
+- **Fără trigger automat** (verificat: nu există trigger de tip `on_auth_user_created`)
+- La signup, codul în `/auth/register/page.tsx` trebuie să facă **DOUĂ inserts:**
+  1. `supabase.auth.signUp()` → creează auth.users row
+  2. `supabase.from("profiles").insert(...)` → creează profiles row cu același id
+- Dacă pasul 2 eșuează → user blocat (auth fără profile)
+
+### CE LIPSEȘTE
+- Trigger automat care creează profile la auth signup (DB-level, robust)
+- ALTERNATIV: ar trebui Edge Function care ascultă webhook-ul Auth Supabase
+
+---
+
+## 35. STRIPE TEST MODE — Quirks
+
+### Două chei TEST în uz
+- **Stripe Dashboard test key:** Pentru integrare normală
+- **Stripe CLI test key (`stripe listen`):** Pentru webhook local development
+
+### Webhook signing secret
+- LIVE: configurat în Stripe Dashboard → Webhooks → semnătură
+- LOCAL DEV: din `stripe listen --forward-to http://localhost:3000/api/stripe/webhook` (genera un secret diferit `whsec_*`)
+- Vercel ENV: `STRIPE_WEBHOOK_SECRET` (LIVE secret)
+- Pentru test local, schimbă temporar valoarea din ENV
+
+### Diferențe TEST vs LIVE
+- TEST: `sk_test_...`, `pk_test_...`, `whsec_test_...`
+- LIVE: `sk_live_...`, `pk_live_...`, `whsec_...`
+- Banii nu se transferă real în TEST (doar simulare)
+- TEST necesită "test mode" în Stripe Dashboard pentru a vedea evenimentele
+
+### Cards de test importante
+```
+4242 4242 4242 4242 — succes (cea mai frecventă)
+4000 0025 0000 3155 — succes după 3D Secure (autenticare)
+4000 0000 0000 9995 — declined: insufficient_funds
+4000 0000 0000 0002 — declined: generic
+```
+Pentru toate: CVC orice 3 cifre, dată ZZ/AA viitoare orice.
+
+---
+
+## 36. POLITICA DE TESTARE
+
+### Stare actuală: **NU există testare automată**
+
+- Nu există Jest/Vitest pentru unit tests
+- Nu există Playwright/Cypress pentru E2E
+- Nu există integrare CI/CD cu testare
+
+### Ce se face
+- **Build check minim:** `npx tsc --noEmit` (verifică TypeScript)
+- **Test manual de Dan** pe staging/live după fiecare commit important
+- **Stripe test mode** pentru fluxul de plată
+- **Card 4242** pentru a simula plăți reușite
+
+### Recomandare (TODO viitor)
+- Setup Playwright pentru E2E pe fluxurile critice:
+  - Login + signup
+  - Căutare + plată cu cardul
+  - Forgot password
+- Setup Vitest pentru lib/ functions (anaf, bnr, distances calculations)
+- GitHub Actions: TS check + lint la fiecare PR
+
+---
+
+## 37. BACKUP & DISASTER RECOVERY
+
+### Supabase Free tier (curent)
+- **Backup automat:** 1 dată/zi, păstrat 7 zile
+- Acces: Supabase Dashboard → Database → Backups → Restore
+- Restore-ul aduce TOATĂ baza de date la momentul backup-ului (nu selectiv)
+
+### CE LIPSEȘTE
+- **Backup în afara Supabase:** dacă proiectul e șters (accidental sau de Supabase) → totul pierdut
+- Recomandare: cron săptămânal care exportă întreg DB-ul la S3/Backblaze
+- **Backup pentru Storage** (uploads): nu există — pozele/documentele sunt vulnerable
+
+### Pentru cont Supabase Pro
+- Backup zilnic 7 zile + Point-in-Time Recovery (PITR) 30 zile
+- Backup-uri pot fi exportate
+
+### În caz de disaster
+1. Verifică Supabase Dashboard backup → restore la cel mai recent
+2. Dacă proiectul e pierdut: trebuie creat nou + restore prin SQL dump
+3. Stripe: păstrează istoricul (nu e local)
+4. SmartBill: păstrează istoricul (nu e local)
+
+---
+
+## 38. CRON / SCHEDULED JOBS
+
+### Stare actuală: **NU există cron-uri active**
+
+### Vercel Cron (suportat dar neutilizat)
+- Vercel suportă scheduled functions via `vercel.json`:
+```json
+{
+  "crons": [
+    { "path": "/api/cron/check-document-expiry", "schedule": "0 9 * * *" }
+  ]
+}
+```
+- Free tier: max 2 cron-uri, fiecare max 1 dată/zi
+
+### TODO IMPORTANT — cron-uri de adăugat
+1. **Document expiry alerts** (zilnic, 9 AM):
+   - Verifică toate companiile → găsește acte care expiră în 30/15/7 zile
+   - Trimite email la transportator + email la admin
+2. **Cotizație anuală membri** (lunar):
+   - Verifică transportatorii cu cotizație expirată
+   - Trimite reminder + factură nouă
+3. **Reminder rezervări apropiate** (zilnic):
+   - Email cu 24h și 1h înainte de plecare către client + transportator
+4. **Refresh BNR rate** (zilnic, ora 14:00):
+   - Curs BNR se publică zilnic la 13:00. Cron-ul cache-ește pentru următoarea zi.
+
+### Alternative la Vercel Cron
+- **Supabase Edge Functions** + cron (cron via pg_cron extension)
+- **External:** GitHub Actions schedule, EasyCron, etc.
+
+---
+
+## 39. CHANGELOG MAJOR (cronologic)
 
 ### 7-9 aprilie 2026 — Fundație
 - Schema inițială (companies, vehicles, bookings, transport_requests, offers)
