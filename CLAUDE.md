@@ -1,6 +1,6 @@
 # CLAUDE.md — Context proiect ATPSOR
 
-> **Citește ÎNTREG fișierul înainte să faci modificări.** Conține contextul de business, structura tehnică, regulile fiscale și deciziile arhitecturale luate până acum. Fără acest context, modificările pot fi greșite.
+> **Citește ÎNTREG fișierul înainte să faci modificări.** Conține contextul de business, structura tehnică, deciziile arhitecturale, lecțiile învățate (ce NU a mers) și strategia de decizie pentru situații ambigue. Fără acest context, modificările pot fi greșite sau pot repeta greșelile anterioare.
 
 **Ultimă actualizare:** 30 aprilie 2026
 **Owner:** Dan Cîrlova (`dan@luxuriatrans.ro`)
@@ -39,12 +39,13 @@
 - **500 RON/an** de la fiecare transportator membru
 - **Factura emisă DIRECT de ATPSOR** către transportator
 - Cotizație asociație, separată de comisionul tranzacțional
+- **NU e încă implementată în cod** (TODO)
 
 ### Exemplu pe 1.000 RON rezervare cu cardul
 
 ```
 Client plătește: 1.000 RON
-Client primește factură: 1.000 RON de la TRANSPORTATOR (direct, complet)
+Client primește factură: 1.000 RON de la TRANSPORTATOR (direct, complet, NIMIC despre comision)
 
 Transportator încasează: 950 RON cash
 Transportator primește factură comision: 50 RON de la ATPSOR
@@ -67,7 +68,31 @@ Luxuria profit net: 25 RON (după TVA)
 | 2 | ATPSOR | Transportator | 50 RON | Comision intermediere platformă (TVA 21%) |
 | 3 | LUXURIA | ATPSOR | 25 RON | Servicii platformă tehnologică (TVA 21%) |
 
-**FOARTE IMPORTANT:** Clientul primește factură pentru SUMA TOTALĂ (1.000 RON). Nu vede comisionul. Asta înseamnă în cod: `subtotalWithVat = totalPrice` (NU + 5% peste).
+**FOARTE IMPORTANT:** Clientul primește factură pentru SUMA TOTALĂ (1.000 RON). Nu vede comisionul. Asta înseamnă în cod: `totalPrice = subtotalWithVat` (NU + 5% peste).
+
+### Reguli din contract (în Luxuria template + cod)
+
+- **Min 200 km/zi billing** (regula minimă: chiar dacă rulezi mai puțin, plătești 200 km × nr zile)
+- **Penalitate 1%/zi** din valoarea facturii pentru plată întârziată
+- **Penalitate 50%** din valoarea totală dacă decomandare < 15 zile înainte de plecare
+- **Km suplimentari peste contract:** 10 lei/km + TVA
+- **Lista turiștilor:** max 2 zile înainte de plecare (obligație beneficiar)
+- **Programul rute omologate:** max 5 zile înainte (obligație beneficiar)
+- **Diurne șoferi + vize:** suportate de TRANSPORTATOR
+- **Taxe drum + vignete:** suportate de TRANSPORTATOR
+- **Cazare șoferi (camere similare turiștilor) + 3 mese/zi:** suportate de BENEFICIAR
+
+### Tarife default per categorie vehicul (RON/km fără TVA, fallback dacă transportatorul n-a setat)
+
+```ts
+ridesharing: 2.50
+microbuz: 4.50
+midiautocar: 6.50
+autocar: 7.50
+autocar_maxi: 8.50
+autocar_grand_turismo: 9.50
+```
+În `src/lib/distances.ts` ca `TARIFFS`.
 
 ---
 
@@ -75,11 +100,11 @@ Luxuria profit net: 25 RON (după TVA)
 
 - **Framework:** Next.js 14 App Router + TypeScript
 - **DB:** Supabase (PostgreSQL + RLS + Storage + Auth)
-- **Plăți:** Stripe Connect (TEST mode) — _DECIZIE PENDINGĂ pentru live: Stripe sau Netopia_
+- **Plăți:** Stripe Connect **Destination Charges** (TEST mode) — _DECIZIE PENDINGĂ pentru live: Stripe sau Netopia_
 - **Facturi:** SmartBill API (Luxuria + ATPSOR au conturi separate)
 - **Email:** Resend pe domeniu verificat `noreply@atpsor.ro` (configurat și pe Supabase SMTP custom)
 - **Hărți:** Google Maps Directions API
-- **Curs valutar:** BNR XML (`https://www.bnr.ro/nbrfxrates.xml`) + 2% marjă, cache zilnic
+- **Curs valutar:** BNR XML (`https://www.bnr.ro/nbrfxrates.xml`) + 2% marjă, cache zilnic în tabela `bnr_exchange_rates`
 - **i18n:** next-intl (RO/EN, default RO)
 
 **ENV variabile critice (Vercel):**
@@ -98,6 +123,40 @@ LUXURIA_SMARTBILL_VAT
 SMARTBILL_COMPANY_VAT          (ATPSOR CIF)
 NEXT_PUBLIC_APP_URL = https://atpsor.ro
 ```
+
+### Stripe Connect — detalii tehnice
+
+- **Mode folosit:** Destination Charges (NU Direct Charges, NU Separate Transfers)
+- Folosim `transfer_data.destination = transporterStripeAccountId` + `application_fee_amount`
+- **Webhook URL pentru live:** `https://atpsor.ro/api/stripe/webhook` (de configurat în Stripe Dashboard)
+- **Checkout currency** este dinamic (`ron` sau `eur`) bazat pe `trip.is_international`
+- **Stripe deduce taxa de procesare** din contul platformei (Luxuria în setup-ul actual)
+- Pentru live, transportatorii trebuie să-și creeze cont Stripe Connect Express prin onboarding (NU implementat încă, e TODO)
+
+### SmartBill — detalii tehnice
+
+- **Auth:** Basic header `Basic <base64(username:token)>`
+- **Endpoint:** `https://ws.smartbill.ro/SBORO/api`
+- **Operații:** `/invoice`, `/payment`, `/estimate` (proforma), `/invoice/pdf`, `/estimate/pdf`
+- Codul în `src/lib/smartbill.ts`
+- Orchestrare 3 facturi în `src/lib/invoicing.ts` → `generateAllInvoices()`
+
+### BNR XML
+
+- Endpoint: `https://www.bnr.ro/nbrfxrates.xml`
+- Parser regex: `<Rate currency="EUR">4.9765</Rate>`
+- Cache în tabela `bnr_exchange_rates` (date PRIMARY KEY)
+- Marjă: +2% peste cursul oficial (`BNR_MARGIN = 0.02` în `src/lib/bnr.ts`)
+
+### Storage Supabase
+
+- **Bucket folosit:** `uploads` (public read, auth users can write)
+- **Folder convention:**
+  - `articles/covers/` — coperti articole
+  - `articles/gallery/` — galerie articole
+  - `vehicule/{vehicleId}/` — poze vehicule (NUME LEGACY: în prefix `vehicles/{vehicleId}/` la data 8 aprilie)
+  - `documente/` — documente companii
+  - `logos/{companyId}/` — logo-uri companii
 
 ---
 
@@ -134,9 +193,10 @@ Câmpuri importante:
 - `contract_template_url, contract_template_name` (PDF contract specific transportator)
 
 ### `vehicles`
-- `photos[]` (coloana NOUĂ) + `images[]` (coloana VECHE — moștenire)
+- `photos[]` (coloana NOUĂ canonică) + `images[]` (coloana VECHE — moștenire)
 - **CRITIC:** Codul verifică AMBELE coloane când caută poze (`hasPhotos = photos[].length>0 || images[].length>0`)
 - Migrația 020 a sincronizat images→photos pentru vehiculele vechi
+- **NU șterge coloana `images`** — încă folosită ca fallback
 
 ### `bookings` (rezervări)
 - `is_international, currency_used, exchange_rate_used`
@@ -181,11 +241,13 @@ Detectare automată: dacă `pickup_country !== "RO" || dropoff_country !== "RO"`
 
 ---
 
-## 7. ANAF API — IMPORTANT
+## 7. ANAF API — IMPORTANT (LECȚIE ÎNVĂȚATĂ)
 
-**Endpoint vechi DEZACTIVAT:** `https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva` (404 pentru orice CUI).
+**❌ Endpoint vechi DEZACTIVAT:** `https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva` (404 pentru ORICE CUI, plătitor TVA sau nu).
 
-**Endpoint NOU folosit:** `https://webservicesp.anaf.ro/AsynchWebService/api/v8/ws/tva`
+**❌ Endpoint v9 inexistent:** `PlatitorTvaRest/api/v9/ws/tva` → 404.
+
+**✅ Endpoint NOU folosit:** `https://webservicesp.anaf.ro/AsynchWebService/api/v8/ws/tva`
 - POST cu `[{cui, data}]` → returnează `correlationId`
 - GET cu `?id=correlationId` → returnează datele complete (`date_generale`, `inregistrare_scop_Tva`, `adresa_sediu_social`)
 - Implementare: `src/lib/anaf.ts` cu polling 5 încercări, 500ms între ele
@@ -236,7 +298,9 @@ Detectare automată: dacă `pickup_country !== "RO" || dropoff_country !== "RO"`
 2. **Comision:** ATPSOR → Transportator (RON, TVA 21%, convertit din EUR cu BNR+2% dacă cursa e externă)
 3. **Royalty:** Luxuria → ATPSOR (50% din comision, RON, TVA 21%)
 
-**ATENȚIE:** Modelul actual din cod folosește numele "Luxuria → ATPSOR" pentru factura 3 dar în realitate (după clarificarea Dan din 30 aprilie) trebuie INVERS: ATPSOR e care încasează comisionul, Luxuria primește 50% pentru serviciul tehnologic. **TODO: corectează direcția în `src/lib/invoicing.ts`**.
+**⚠️ TODO CRITIC:** Codul actual din `src/lib/invoicing.ts` are ÎNCĂ direcție veche (Luxuria → Transportator pentru comision și Luxuria → ATPSOR). După clarificarea Dan din 30 aprilie, **trebuie inversat:**
+- ATPSOR → Transportator: 50 RON comision (NU Luxuria → Transportator)
+- Luxuria → ATPSOR: 25 RON servicii platformă (DIRECȚIE OK, dar text trebuie schimbat din "royalty marcă" în "servicii platformă tehnologică")
 
 ### Fluxul facturii la plata cu cardul:
 1. Webhook Stripe primește `checkout.session.completed`
@@ -311,68 +375,134 @@ Detectare automată: dacă `pickup_country !== "RO" || dropoff_country !== "RO"`
 
 **TOATE rulate deja în production**.
 
----
-
-## 16. PROBLEME CUNOSCUTE / TO-DO
-
-### TO-DO urgent:
-1. **Decide între Stripe și Netopia** pentru live (Dan vorbește cu Netopia — așteptăm răspuns)
-2. **Inversează logica facturilor** din `src/lib/invoicing.ts`:
-   - ATPSOR → Transportator: 50 RON comision (NU Luxuria → Transportator)
-   - Luxuria → ATPSOR: 25 RON servicii platformă (NU Luxuria → ATPSOR royalty marcă)
-3. **Implementează butonul "Conectează Stripe Connect"** în Dashboard Transportator (~30 min)
-4. **Taxa anuală membri ATPSOR (500 RON/an)** — nu e implementată încă, trebuie:
-   - Tab nou în admin pentru gestionare membri
-   - Factură ATPSOR → transportator la înscriere/anual
-   - Tracking expirare cotizație
-
-### TO-DO mediu:
-5. **Rotire RESEND_API_KEY** (badge "Need To Rotate" în Vercel — fost expus public)
-6. **Stripe → Live keys** când totul e gata + transportatorii își conectează contul
-7. **Pagina /terms** există dar conținutul poate fi îmbunătățit
-
-### Restricții importante:
-- **NU TREBUIE schimbat** prețul afișat clientului (e suma totală 1000, nu 950 + 50)
-- **NU TREBUIE șters** coloana `vehicles.images` (legacy, încă folosită ca fallback)
-- **NU TREBUIE modificate** seriile SmartBill ale Luxuriei (LTT, LTTCURS, LTT EURO, FPROF) — sunt pentru ALTE servicii Luxuria, nu pentru ATPSOR
+**Pentru migrații noi:** următorul număr e `024`. NU modifica migrațiile existente — creează una nouă.
 
 ---
 
-## 17. DECIZII LUATE PÂNĂ ACUM (NU LE SCHIMBA FĂRĂ DAN)
+## 16. ⚠️ LECȚII ÎNVĂȚATE — CE NU A MERS (NU REPETA)
 
-1. **Comision platformă: 5%** (configurabil în `src/lib/distances.ts` — `PLATFORM_FEE_RATE`)
-2. **Split comision: 50% Luxuria / 50% ATPSOR** (`LUXURIA_COMMISSION_RATE` în `src/lib/invoicing.ts`)
-3. **Stripe fee suportat de ATPSOR** (logic, nu mecanic — Luxuria îl deduce din transferul către ATPSOR)
-4. **Curs valutar EUR/RON: BNR + 2%** marjă
-5. **TVA România: 21%**
-6. **Min KM pe zi: 200**
-7. **Tarife default per categorie vehicul:** ridesharing 2.5, microbuz 4.5, midiautocar 6.5, autocar 7.5, autocar_maxi 8.5, autocar_grand_turismo 9.5
-8. **Coloana de poze CANONICĂ:** `photos[]` (codul are fallback la `images[]` pentru legacy)
-9. **Limba default:** Romana (RO)
-10. **Domeniu email:** noreply@atpsor.ro
+### 16.1. ANAF API
+- **Greșit:** `PlatitorTvaRest/api/v8/ws/tva` și `v9/ws/tva` → 404 pentru orice CUI
+- **Greșit:** Adăugarea hardcoded `, Romania` la fiecare oraș în Google Maps → ruta nu se găsea pentru orașe străine (Istanbul, Veliko Tarnovo)
+- **Corect:** AsynchWebService cu correlationId pattern (POST + GET polling)
+- **Corect:** Mapare ISO țară (RO→Romania, TR→Turkey) trimisă explicit în `/api/distance`
+
+### 16.2. Pagina publică transportatori
+- **Greșit:** Filtrarea pe client-side cu `supabase.from("company_documents").select()` → returna [] gol din cauza RLS pe userii anonimi
+- **Greșit:** Cache Vercel pe `/api/public/transporters` returna lista veche
+- **Corect:** API server-side cu service role + `export const dynamic = "force-dynamic"` + `revalidate = 0`
+
+### 16.3. SMOTOCEL nu se putea loga
+- **Cauza:** Folosea email greșit (`g.ciutacu13@yahoo.com` în loc de `smotoceltrans@yahoo.com`)
+- **NU era bug** la auth platform — era utilizator confuz
+- **Lecție:** când un user spune că nu se loghează, întâi verifică în DB ce email are, apoi verifică flow-ul auth
+
+### 16.4. Forgot password
+- **Greșit:** Linkul "Am uitat parola" pointa la `/auth/login` (aceeași pagină, pagina forgot-password nu exista)
+- **Corect:** Pagini noi `/auth/forgot-password` + `/auth/reset-password` + Supabase SMTP custom Resend
+
+### 16.5. Articole CMS — categorie nouă
+- **Greșit:** Adăugat categoria `intalniri-autoritati` în UI dar **uitat** să updatez CHECK constraint în DB
+- **Eroare:** `new row for relation "articles" violates check constraint "articles_category_check"`
+- **Corect:** Migrația 023 cu noul ARRAY ce include categoria nouă
+
+### 16.6. Inspector RLS
+- **Greșit:** Adăugat policy `Inspectors can view all profiles` cu EXISTS pe `profiles` → recursie / interferență cu fetch-ul role-ului
+- **Corect:** DROP policy. Folosim "Profiles viewable by everyone" (qual=true) care există deja și acoperă cazul
+
+### 16.7. Header rol inspector
+- **Greșit:** `if (userRole === "admin") return "/dashboard/admin"; else return "/dashboard/client"` → inspectorul mergea pe `/dashboard/client`
+- **Corect:** `if (userRole === "admin" || userRole === "inspector") return "/dashboard/admin"`
+
+### 16.8. Pozele Luxuria invizibile
+- **Cauza:** Pozele erau în coloana `vehicles.images` (legacy) dar codul nou căuta în `vehicles.photos`
+- **Corect:** Migrația 020 sincronizează images→photos pentru vehiculele vechi + cod fallback (`photos[].length>0 || images[].length>0`)
+
+### 16.9. Cookie cache Chrome
+- **Simptom:** Dan a fost redirectat la `/dashboard/client` deși era admin → meniul afișa "Dashboard" în loc de "Admin"
+- **Cauza:** Cookie-uri Supabase corupte în Chrome normal (după migrațiile RLS rapide)
+- **Workaround:** Incognito (Ctrl+Shift+N) pentru a confirma că codul merge OK
+- **Fix permanent:** `Ctrl+Shift+Delete` → șterge cookies și cache → re-login
+
+### 16.10. Stripe Connect mode
+- **Considerat:** Direct Charges (transportatorul e MoR) — REFUZAT, complica facturarea
+- **Considerat:** Separate Charges and Transfers — REFUZAT, prea manual
+- **Corect:** Destination Charges cu `transfer_data.destination` + `application_fee_amount`
 
 ---
 
-## 18. UTILIZATORI ÎN SISTEM (la 30 aprilie 2026)
+## 17. DECIZII ABANDONATE / SCHIMBATE PE PARCURS
 
-| Email | Nume | Rol |
-|---|---|---|
-| dan@luxuriatrans.ro | Dan Cîrlova | admin |
-| smotoceltrans@yahoo.com | Ciutacu George (SMOTOCEL) | inspector (secretar) |
-| dancarlova@gmail.com | Dan Cîrlova (test) | transporter |
-| stancugabriel2481@gmail.com | Stancu Marian Gabriel | transporter |
-| cristi_felecanu@yahoo.com | Cristian Felecanu | transporter |
-| bogdanfloarea77@gmail.com | Floarea Alexandru Bogdan | transporter |
-| quickridebus@gmail.com | Ionut Gagiu | transporter |
+### 17.1. Calcul preț client
+- **Vechi (REFUZAT):** `totalPrice = subtotalWithVat + platformFee` (5% peste prețul transportului)
+  - Clientul ar plăti 1.000, dar factură doar 952,38 (transport) + comision separat 47,62
+- **Nou (CORECT):** `totalPrice = subtotalWithVat` (clientul plătește direct totalul, comisionul e intern între ATPSOR și transportator)
+  - Clientul plătește 1.000, primește factură 1.000
 
-**Companii public-vizibile (după aprobare):**
-- Luxuria Trans & Travel SRL (RO31261740) — Bragadiru, Ilfov
-- SMOTOCEL SRL (RO35050877) — București
-- (alte 3 sunt înregistrate dar nu au docs/poze complete)
+### 17.2. Direcția facturii de comision
+- **Vechi (REFUZAT):** Luxuria → Transportator pentru comision (Luxuria platform)
+- **Nou (CORECT):** ATPSOR → Transportator (ATPSOR e operator, încasează comision)
+- **TODO:** inversare în `src/lib/invoicing.ts` (constanta `LUXURIA_COMMISSION_RATE` rămâne, dar logica trebuie schimbată)
+
+### 17.3. Direcția facturii Luxuria-ATPSOR
+- **Vechi (REFUZAT):** Luxuria primea totul, dădea ATPSOR 50% ca "royalty marcă"
+- **Nou (CORECT):** ATPSOR primește totul, dă Luxuria 50% ca "servicii platformă tehnologică"
+
+### 17.4. Numărul de facturi între ATPSOR-Luxuria
+- **Considerat:** 4 facturi separate (royalty 25 + Stripe pass-through 17)
+- **Considerat:** 1 factură combinată (8 RON net)
+- **PENDINGĂ decizie:** așteaptă Dan să confirme
+
+### 17.5. Procesator plăți live
+- **Pendingă:** Stripe vs Netopia (Dan vorbește cu Netopia)
+- **Stripe avantaje:** API mai bun, multi-currency nativ, Connect Express digital
+- **Netopia avantaje:** mai ieftin, suport română, mai prietenos pentru asociații românești
 
 ---
 
-## 19. WORKFLOW DEZVOLTARE
+## 18. TEST DATA & CREDENTIALS UTILE
+
+### Stripe TEST mode (momentan)
+- Card test: `4242 4242 4242 4242` — CVC orice 3 cifre, dată viitoare orice
+- Card cu authentication required: `4000 0025 0000 3155`
+- Card refuzat: `4000 0000 0000 0002`
+
+### CUI-uri reale pentru testare
+- `47298966` — QUICK RIDE BUS S.R.L. (plătitor TVA, București)
+- `RO31261740` — Luxuria Trans & Travel SRL (Bragadiru, Ilfov)
+- `RO35050877` — SMOTOCEL SRL (București)
+
+### Date din DB la 30 aprilie 2026
+- **Booking exemplu (existent, pending_payment):** `80d71d99-7d0e-4644-9fa0-ec317ac65030`
+  - SMOTOCEL → Müller Reisen Partener Auto S.R.L
+  - București → Brașov, 24.04.2026
+  - 2.851 RON (transfer bancar)
+- **Articol exemplu publicat:** slug `atpsor-intalnire-de-lucru-cu-domnul-marian-bargau-...`
+  - Categoria: `intalniri-autoritati`
+- **2 companii publice:** Luxuria + SMOTOCEL
+
+### Email
+- **Domeniu Resend verificat:** `atpsor.ro`
+- **From:** `noreply@atpsor.ro`
+- **API key în Vercel:** `RESEND_API_KEY` (Need to Rotate — fost expus)
+
+---
+
+## 19. UTILIZATORI ÎN SISTEM (la 30 aprilie 2026)
+
+| Email | Nume | Rol | Companie |
+|---|---|---|---|
+| dan@luxuriatrans.ro | Dan Cîrlova | admin | Luxuria Trans & Travel SRL |
+| smotoceltrans@yahoo.com | Ciutacu George | inspector (secretar asociație) | SMOTOCEL SRL |
+| dancarlova@gmail.com | Dan Cîrlova (test) | transporter | — |
+| stancugabriel2481@gmail.com | Stancu Marian Gabriel | transporter | SC Ianis Trans Express SRL |
+| cristi_felecanu@yahoo.com | Cristian Felecanu | transporter | — |
+| bogdanfloarea77@gmail.com | Floarea Alexandru Bogdan | transporter | SC FLOAREA TRAVEL LOGISTICS.SRL |
+| quickridebus@gmail.com | Ionut Gagiu | transporter | — |
+
+---
+
+## 20. WORKFLOW DEZVOLTARE
 
 ### Local dev:
 ```bash
@@ -396,15 +526,32 @@ git push origin main
 
 ### DB direct (pentru migrații sau debug):
 - Supabase SQL Editor: https://supabase.com/dashboard/project/kfafifosxsrahuktwvuj/sql
-- Sau via MCP `mcp__supabase__execute_sql`
+- Sau via MCP `mcp__supabase__execute_sql` (dacă e disponibil în sesiunea Claude)
 
 ### Migrații:
 - Toate în `supabase/migrations/` — naming convention: `XXX_description.sql`
 - **IMPORTANT:** rulează direct în Supabase SQL Editor, NU se aplică automat la push
 
+### Test cu curl că merge API-ul după deploy:
+```bash
+curl -s "https://atpsor.ro/api/public/transporters?t=$(date +%s)" -H "Cache-Control: no-cache"
+```
+(`?t=...` = cache buster + `Cache-Control: no-cache` forțează request fresh)
+
 ---
 
-## 20. STIL DE COMUNICARE CU DAN
+## 21. QUIRK-URI OPERAȚIONALE (specific mediu Windows + worktree)
+
+- **Shell cwd reset:** Pe Windows, după fiecare comandă Bash, working directory se resetează la worktree (`.claude/worktrees/serene-haibt`). Folosește `cd /c/Users/danci/ATPSOR && comanda` în fiecare comandă, NU presupune că rămâi în main repo.
+- **Git lock file:** Apare random `.git/index.lock` care blochează commit-urile. Fix: `rm -f .git/index.lock`
+- **Vercel cache pentru force-dynamic:** Ocazional cache-ul Edge nu se invalidează. Workaround: `?t=$(date +%s)` query param ca cache buster.
+- **Linter modifică fișierele:** Uneori Linter-ul face modificări mici după salvare. NU le suprascrie — sunt OK și intenționate.
+- **Supabase SMTP rate limit:** Built-in SMTP Supabase = ~3-4 email/oră. SMTP custom Resend = nelimitat practic.
+- **Worktrees în `.claude/worktrees/`:** Sesiuni vechi de Claude Code. NU le șterge — pot fi în uz.
+
+---
+
+## 22. STIL DE COMUNICARE CU DAN
 
 - **Răspunde scurt și direct** — Dan e foarte ocupat, nu agreează răspunsuri lungi
 - **Acțiuni concrete** > explicații teoretice
@@ -413,60 +560,192 @@ git push origin main
 - **Folosește română** (rar engleză pentru termeni tehnici)
 - **Comentariile în cod în română** sau engleză — păstrează stilul existent
 - **Commit messages în română** (păstrează stilul: descriere problemă + fix)
+- **Cere confirmarea înainte de modificări mari** — platforma e LIVE
+- **Folosește emoji moderat** — Dan apreciază claritatea ✓ ✗ 🎯 ⚠️
+- **Tabele > paragrafe lungi** când compari opțiuni
 
 ---
 
-## 21. REPERE ARHITECTURALE
+## 23. STRATEGIE DE DECIZIE PENTRU SITUAȚII AMBIGUE
+
+### Când să întrebi Dan ÎNAINTE de a face
+
+1. **Modificare logica plăților** (preț, comision, split) → CERE Dan
+2. **Modificări DB schema** (tabele/coloane noi) → migrație nouă, dar întreabă pentru lucruri delicate (RLS pe profiles, modificare constraints)
+3. **Schimbare flow utilizator** (login, redirecționări) → CERE Dan, e platformă LIVE
+4. **Decizii arhitecturale mari** (Stripe vs Netopia, Luxuria vs ATPSOR ca platform) → CERE Dan
+5. **Ștergere date** (DELETE pe production) → CERE Dan, confirmă de 2 ori
+
+### Când poți face fără să întrebi
+
+1. **Bug fix evident** (typo, regex, edge case) → fix direct
+2. **Feature deja TODO listed** (dacă e în lista de mai jos) → pornește
+3. **Refactor cosmetic** (rename variabilă, extract function) → OK
+4. **Documentație/comments** → mereu OK
+5. **TS check failures** → rezolvă mereu
+
+### Cum să prezinți decizii lui Dan
+
+- Folosește format `Opțiunea A / B / C` cu argumente pro-contra
+- Termină cu **recomandare proprie** (nu lăsa decizia goală)
+- Cere răspuns scurt: `A` / `B` / `C cu detalii`
+
+### Niciodată
+
+- Nu folosi `git --no-verify` sau `--no-gpg-sign`
+- Nu șterge `.claude/worktrees/`
+- Nu modifica seriile SmartBill ale Luxuriei (LTT/LTTCURS/LTT EURO/FPROF) — sunt pentru ALTE servicii Luxuria, nu pentru ATPSOR
+- Nu expune ENV-uri sensibile în logs/commits (RESEND_API_KEY, STRIPE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY)
+- Nu face `git push --force` pe main
+- Nu modifica calculul `totalPrice` ca să includă comisionul (regula sacră: clientul plătește totalul, comisionul e intern)
+
+---
+
+## 24. TO-DO PRIORITIZAT (la 30 aprilie 2026)
+
+### 🔴 URGENT — necesar pentru live cu plăți cu cardul
+
+1. **Decide între Stripe și Netopia** — Dan vorbește cu Netopia, așteptăm răspuns
+2. **Inversează direcția facturilor** în `src/lib/invoicing.ts`:
+   - ATPSOR → Transportator: 50 RON comision (nu Luxuria → Transportator)
+   - Luxuria → ATPSOR: 25 RON servicii platformă (nu Luxuria → ATPSOR royalty)
+3. **Stripe Connect onboarding** pentru transportatori (~30 min cod):
+   - Buton "Conectează Stripe" în Dashboard Transportator
+   - API endpoint pentru a crea Express account + a obține onboarding URL
+   - Webhook pentru a salva `stripe_account_id` la complete
+
+### 🟡 MEDIU — îmbunătățiri funcționale
+
+4. **Taxa anuală membri ATPSOR (500 RON/an)** — neimplementată:
+   - Tab nou în admin pentru gestionare membri
+   - Factură ATPSOR → transportator la înscriere/anual
+   - Tracking expirare cotizație + email reminders
+5. **Rotire RESEND_API_KEY** (Vercel arată "Need to Rotate")
+6. **Pagina /terms** există dar conținutul poate fi îmbunătățit cu termeni concreți
+7. **Stripe → LIVE keys** când totul de mai sus e gata
+
+### 🟢 NICE-TO-HAVE
+
+8. **Mobile responsive review** — anumite pagini (admin, contract preview) pot fi optimizate
+9. **Email templates HTML pe Supabase** — în prezent default, putem îmbunătăți
+10. **SEO optimizations** — meta tags, sitemap.xml dynamic
+11. **Manual transportator** (`/manual/transportator`) — există dar poate fi expandat
+12. **Reports panel** — există template, poate fi îmbogățit cu grafice
+
+### 🔵 BACKLOG (pe termen lung)
+
+- Plăți recurente (abonamente)
+- App mobile native
+- Integrare alte procesatoare (PayU, ePayment)
+- Multi-tenant (alte asociații folosesc platforma)
+
+---
+
+## 25. REPERE ARHITECTURALE
 
 ```
 src/
 ├── app/
 │   ├── [locale]/           # Pagini publice și private (RO/EN)
-│   │   ├── activitati/     # CMS articole
+│   │   ├── activitati/     # CMS articole + pagină publică listare
+│   │   │   └── [slug]/     # Detaliu articol
 │   │   ├── auth/           # Login/register/forgot-password/reset-password
 │   │   ├── book/[token]/   # Booking link unic transportator
 │   │   ├── contract/[bookingId]/  # Contract auto-completat (UUID secret)
 │   │   ├── dashboard/
 │   │   │   ├── admin/      # Panou admin/inspector
+│   │   │   │   └── company/[id]/  # Detaliu companie cu Aprobă & Publică
 │   │   │   ├── client/     # Panou client
-│   │   │   └── transporter/ # Panou transportator
-│   │   ├── request/        # Căutare rapidă transport
+│   │   │   └── transporter/ # Panou transportator (cu tab Rezervări)
+│   │   ├── request/        # Căutare rapidă transport (RequestTransportForm)
+│   │   │   └── [id]/offers/ # Pagina cu oferte primite
 │   │   ├── transporters/   # Listă publică transportatori
-│   │   ├── activitati/     # Pagină publică articole
+│   │   │   └── [id]/       # Profil transportator
+│   │   ├── manual/         # Manuale client + transporter
 │   │   └── terms/          # Termeni și condiții
 │   └── api/
 │       ├── stripe/         # Checkout + webhook
 │       ├── booking/        # Bank transfer + confirm-payment + contract
 │       ├── public/transporters/  # API public listă transportatori
-│       ├── distance/       # Google Maps Directions
-│       ├── anaf/           # Verificare CUI
-│       └── companies/refresh-anaf/  # Reverificare ANAF auto
+│       ├── distance/       # Google Maps Directions cu mapping țări
+│       ├── anaf/           # Verificare CUI (apelat din register)
+│       ├── companies/refresh-anaf/  # Reverificare ANAF (admin/transporter)
+│       ├── invoices/       # PDF download, send, cancel
+│       └── notify-approval/ # Email manual transportator
 ├── components/
-│   ├── admin/ArticlesManager.tsx
+│   ├── admin/ArticlesManager.tsx   # CMS articole
 │   ├── contract/ContractPreview.tsx  # Component reutilizabil contract
-│   ├── layout/Header.tsx
+│   ├── invoices/InvoiceList.tsx
+│   ├── layout/Header.tsx           # Navigation cu role-based dashboard link
 │   ├── request/RequestTransportForm.tsx  # Componenta principală căutare
-│   └── transporters/TransportersList.tsx  # Listă publică
+│   ├── transporter/
+│   │   ├── BookingLinkForm.tsx
+│   │   ├── DocumentUpload.tsx
+│   │   ├── ReportsPanel.tsx
+│   │   └── VehicleCalendar.tsx
+│   └── transporters/TransportersList.tsx  # Listă publică (folosește /api/public/transporters)
 ├── lib/
 │   ├── anaf.ts            # ANAF async API + verifyCUI
 │   ├── bnr.ts             # Curs BNR + cache
 │   ├── distances.ts       # Pricing logic + opts pt extern/non-VAT
+│   ├── emails.ts          # Resend templates
 │   ├── invoicing.ts       # Orchestrare facturi SmartBill (3 facturi)
 │   ├── smartbill.ts       # SmartBill API client
-│   └── emails.ts          # Resend templates
+│   ├── stripe/config.ts
+│   └── supabase/{client,server,storage}.ts
+├── i18n/                  # next-intl config
+├── messages/              # ro.json, en.json
+├── middleware.ts          # next-intl middleware
 └── types/database.ts      # Tipuri TypeScript pentru tabele Supabase
 ```
 
 ---
 
-## 22. CONTACT & DOCUMENTAȚIE EXTERNĂ
+## 26. CONTACT & DOCUMENTAȚIE EXTERNĂ
 
 - **Stripe Dashboard:** https://dashboard.stripe.com (cont Luxuria)
 - **SmartBill:** https://www.smartbill.ro (Luxuria + posibil ATPSOR separat)
 - **Vercel:** https://vercel.com/dancarlova-4583s-projects/atpsor
 - **Supabase:** https://supabase.com/dashboard/project/kfafifosxsrahuktwvuj
 - **Resend:** https://resend.com (domeniu verificat atpsor.ro)
+- **GitHub:** https://github.com/dancarlova-atpsor/ATPSOR
+- **ANAF API docs:** căutați "ANAF webservicesp AsynchWebService" (oficial: https://www.anaf.ro/anaf/internet/ANAF/servicii_online/servicii_web)
+- **BNR XML:** https://www.bnr.ro/nbrfxrates.xml
 
 ---
 
-**Pentru orice modificare semnificativă, consulță Dan înainte. Platforma e LIVE și are utilizatori reali (transportatori).**
+## 27. CHANGELOG MAJOR (cronologic)
+
+### 7-9 aprilie 2026 — Fundație
+- Schema inițială (companies, vehicles, bookings, transport_requests, offers)
+- Auth Supabase + roluri inițiale (client/transporter/admin)
+- Pagina căutare transport + contract preview
+- Stripe Connect Destination Charges setup
+
+### 10-14 aprilie 2026 — SmartBill + Email
+- Integrare SmartBill API + 3 facturi automate
+- Resend email cu domeniu verificat
+- Manual transportator + manual client
+
+### 15-23 aprilie 2026 — Curse externe + admin
+- Migrații 017-019: contract data + curse externe + plătitor TVA
+- Selector țară + Google Maps multi-country
+- Pagina detaliu companie admin + verificare documente
+
+### 24-29 aprilie 2026 — Inspector role + Activitati
+- Migrații 020-022: photos legacy, bookings update, inspector role
+- Tab Rezervări în Dashboard Transportator
+- CMS Activitati cu categorii (Întâlniri Asociație, Întâlniri Autorități, Evenimente, Comunicate)
+
+### 30 aprilie 2026 — Clarificare business model + CLAUDE.md
+- Clarificare structură fiscală: ATPSOR e operatorul, Luxuria e furnizor tehnologic
+- Promovare Ciutacu George (SMOTOCEL) la rol inspector
+- Articol publicat: "Întâlnire de lucru cu Marian Bârgău"
+- Discuție Stripe vs Netopia (Dan urmează să sune Netopia)
+- **Acest CLAUDE.md creat** — context complet pentru sesiuni viitoare
+
+---
+
+**Pentru orice modificare semnificativă, consultă Dan înainte. Platforma e LIVE și are utilizatori reali (transportatori).**
+
+**Pentru sesiuni viitoare:** dacă găsești ceva ce nu se aliniază cu acest fișier (ex: schema DB diferită, decizii noi), **întreabă Dan și actualizează CLAUDE.md** la final. Acest fișier e sursa unică a adevărului pentru context.
