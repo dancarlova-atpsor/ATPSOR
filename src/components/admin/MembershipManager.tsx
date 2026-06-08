@@ -329,13 +329,23 @@ export default function MembershipManager() {
                 </div>
               )}
 
-              {r.status === "paid" && r.activated_company_id && (
-                <div className="mt-3 flex border-t border-gray-100 pt-3">
+              {r.status === "paid" && (
+                <div className="mt-3 flex flex-wrap gap-3 border-t border-gray-100 pt-3">
+                  {r.activated_company_id && (
+                    <a
+                      href={`/ro/dashboard/admin/company/${r.activated_company_id}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      Deschide compania activată <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
                   <a
-                    href={`/ro/dashboard/admin/company/${r.activated_company_id}`}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                    href={`/ro/adeverinta/${r.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:underline"
                   >
-                    Deschide compania activată <ExternalLink className="h-3 w-3" />
+                    📜 Vezi adeverința <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
               )}

@@ -164,10 +164,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // Marchez cererea ca plătită
+    // Marchez cererea ca plătită + generez numărul oficial al adeverinței
     const now = new Date();
     const expiresAt = new Date(now);
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+    // Generez certificate_number via funcția SQL
+    const { data: certNumberRes } = await serviceClient.rpc("generate_certificate_number");
+    const certificateNumber = (certNumberRes as string) || `ATPSOR-${now.getFullYear()}-001`;
+
+    // Generez verification_code (12 chars hex random)
+    const verificationCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase();
 
     await serviceClient
       .from("membership_requests")
@@ -177,6 +187,8 @@ export async function POST(request: Request) {
         expires_at: expiresAt.toISOString(),
         activated_user_id: userId,
         activated_company_id: companyId,
+        certificate_number: certificateNumber,
+        verification_code: verificationCode,
       })
       .eq("id", requestId);
 
@@ -206,6 +218,15 @@ export async function POST(request: Request) {
     <div style="text-align:center;margin:24px 0;">
       <a href="${loginUrl}" style="background:#1e40af;color:white;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">
         Loghează-te pe atpsor.ro →
+      </a>
+    </div>
+
+    <div style="background:#fef3c7;border:2px solid #fcd34d;padding:16px;border-radius:6px;margin:18px 0;text-align:center;">
+      <div style="font-size:14px;font-weight:bold;color:#78350f;">🏆 Adeverința ta de membru ATPSOR</div>
+      <div style="font-family:monospace;font-size:16px;font-weight:bold;color:#92400e;margin:6px 0;">${certificateNumber}</div>
+      <div style="font-size:12px;color:#78350f;margin-bottom:10px;">Valabilă: ${now.toLocaleDateString("ro-RO")} → ${expiresAt.toLocaleDateString("ro-RO")}</div>
+      <a href="https://atpsor.ro/ro/adeverinta/${requestId}" style="background:#d97706;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:13px;">
+        📜 Descarcă Adeverința PDF →
       </a>
     </div>
 
