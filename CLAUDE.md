@@ -28,31 +28,53 @@
 
 ## 2. MODELUL DE BUSINESS — REGULA SACRĂ
 
-### Comisioane
+### Comisioane — **CLARIFICAT 09.06.2026 (pending discutie membri fondatori)**
 
-- **5% comision platformă** la fiecare rezervare → primit de **ATPSOR**
-- **50% din acest comision** → plătit de ATPSOR către **Luxuria** (drept folosință platformă tehnologică)
-- ATPSOR păstrează **50% net** (din care plătește costul Stripe/Netopia)
+⚠️ **SCHIMBARE MAJORĂ după clarificarea Dan din 08-09 iunie 2026:**
 
-### Taxa membru — **IMPLEMENTAT** (8 iunie 2026, migrația 024)
+**Asociațiile NU pot avea cont la procesatori de plăți cu cardul** (nici Stripe, nici Netopia, nici PayU). Asta blochează ideea ca ATPSOR să primească comisionul direct.
 
-- **500 RON/an** de la fiecare transportator membru
-- **Cont ATPSOR pentru încasare:** `RO58 CECE B000 30RO N397 9534`, CEC Bank SA, CIF 52819099
+**Modelul nou propus (în document PROPUNERE_PLATFORMA_ATPSOR.md):**
+- Luxuria oferă platforma ATPSOR **gratis pe 5 ani** (apoi renegociere)
+- **Comisionul 5% merge INTEGRAL la Luxuria** (compensație pentru dezvoltare + mentenanță + procesare card prin Netopia)
+- Luxuria are deja cont Netopia (~1,7% taxă procesare)
+- **ATPSOR primește integral cotizația 500 RON/an de la membri** (separat, prin transfer bancar pe contul lor CEC Bank)
+- ATPSOR NU primește nimic din comisioane (modelul vechi 50/50 ATPSOR-Luxuria e ANULAT)
+
+**Status:** Dan urmează să prezinte propunerea membrilor fondatori ATPSOR. **AȘTEPTĂM acord.**
+
+**Procesare plăți:**
+- ❌ NU folosim Stripe (decizie Dan)
+- ✅ Folosim **Netopia** (contract pe Luxuria SRL)
+- Card → Netopia → cont Luxuria → split la transportator (95%) + comision Luxuria (5%)
+- Codul actual Stripe Connect rămâne ca PoC, dar trebuie migrat la Netopia (TODO viitor după acordul AGA)
+
+### Taxa membru — **IMPLEMENTAT** (8 iunie 2026, migrația 024 + 025)
+
+- **500 RON/an** de la fiecare transportator membru, **DOAR transfer bancar** (asociațiile nu acceptă card)
+- **Cont ATPSOR:** `RO58 CECE B000 30RO N397 9534`, CEC Bank SA, CIF 52819099
 - Flow:
-  1. Transportator completează form pe `/membership` (pagina publică)
+  1. Transportator completează form pe `/membership` (pagina publică, public)
   2. API `/api/membership/request` salvează în `membership_requests`, generează `payment_reference` unic (format `ADEZIUNE-{CUI}-{TIMESTAMP_BASE36}`)
-  3. Email automat la solicitant cu IBAN + sumă + **referință obligatorie de plată**
-  4. Email automat la admin (NOTIFY_EMAIL) cu detaliile cererii
-  5. Admin/Inspector deschide tab "Adeziuni" în admin panel → vede listă cu filtre
+  3. Email automat la solicitant cu IBAN + sumă + **referință obligatorie de plată** + contact George Ciutacu (secretar)
+  4. Email automat la INSPECTOR (George Ciutacu) — NU la admin
+  5. Inspector deschide tab "Adeziuni" în admin panel → vede listă cu filtre
   6. Click **"Confirmă plata"** → `/api/membership/confirm-payment`:
      - Marchează `status=paid`, setează `paid_at` + `expires_at` (1 an)
      - Creează user nou în `auth.users` cu parolă temporară random (12 chars)
      - Creează profile cu rol `transporter`
      - Creează companies (sau asociază la existent prin CUI)
-     - Trimite email cu credențiale (email + parolă + buton login)
+     - **Generează `certificate_number` (ATPSOR-YYYY-NNN) + `verification_code` (12 hex)**
+     - Trimite email cu credențiale + link adeverință PDF
   7. La 1 an, `status=expired` (TODO: cron pentru reminder reînnoire)
-- **Factură SmartBill:** NU emite automat (Dan își face propriul sistem facturare ATPSOR)
-- **TVA:** ATPSOR neplătitor TVA → 500 RON fără TVA, mențiune "Neplătitor TVA art. 310 CF"
+
+**Adeverința de Membru** (migrația 025):
+- Pagina printabilă `/adeverinta/[id]` (Ctrl+P → PDF) cu design oficial, 2 semnături (Dan Cîrlova Președinte + George Ciutacu Secretar)
+- Verificare publică `/verifica/[code]` — cineva cu codul poate verifica autenticitatea
+- Status afișat: ACTIVĂ / EXPIRATĂ în funcție de `expires_at`
+
+**Factură SmartBill:** NU emite automat (Dan își face propriul sistem facturare ATPSOR)
+**TVA:** ATPSOR neplătitor TVA → 500 RON fără TVA, mențiune "Neplătitor TVA art. 310 CF"
 
 ### Exemplu pe 1.000 RON rezervare cu cardul
 
@@ -385,11 +407,12 @@ Detectare automată: dacă `pickup_country !== "RO" || dropoff_country !== "RO"`
 022 — inspector_role                Rol nou + RLS policies
 023 — articles_intalniri_autoritati_category Add categorie nouă în CHECK constraint
 024 — membership_requests           Cereri adeziune ATPSOR (500 RON/an)
+025 — membership_certificate        Adeverință membru + numerotare + cod verificare
 ```
 
 **TOATE rulate deja în production**.
 
-**Pentru migrații noi:** următorul număr e `025`. NU modifica migrațiile existente — creează una nouă.
+**Pentru migrații noi:** următorul număr e `026`. NU modifica migrațiile existente — creează una nouă.
 
 ---
 
@@ -617,26 +640,43 @@ curl -s "https://atpsor.ro/api/public/transporters?t=$(date +%s)" -H "Cache-Cont
 
 ## 24. TO-DO PRIORITIZAT (la 30 aprilie 2026)
 
-### 🔴 URGENT — necesar pentru live cu plăți cu cardul
+### 🔴 URGENT — pendingă aprobare membri fondatori ATPSOR (09.06.2026)
 
-1. **Decide între Stripe și Netopia** — Dan vorbește cu Netopia, așteptăm răspuns
-2. **Inversează direcția facturilor** în `src/lib/invoicing.ts`:
-   - ATPSOR → Transportator: 50 RON comision (nu Luxuria → Transportator)
-   - Luxuria → ATPSOR: 25 RON servicii platformă (nu Luxuria → ATPSOR royalty)
-3. **Stripe Connect onboarding** pentru transportatori (~30 min cod):
-   - Buton "Conectează Stripe" în Dashboard Transportator
-   - API endpoint pentru a crea Express account + a obține onboarding URL
-   - Webhook pentru a salva `stripe_account_id` la complete
+1. **Discuție membri fondatori ATPSOR** — Dan urmează să prezinte propunerea (`PROPUNERE_PLATFORMA_ATPSOR.md`):
+   - Luxuria pune platforma gratis 5 ani
+   - Comisionul 5% merge INTEGRAL la Luxuria
+   - ATPSOR primește integral cotizațiile membrilor
+   - Inversarea facturilor ATPSOR→Transportator e ANULATĂ (rămâne Luxuria → Transportator)
+2. **După acord membri:** migrare Stripe Connect → **Netopia Marketplace** (~2-3 zile):
+   - Refactor `/api/stripe/checkout` → `/api/netopia/checkout`
+   - Webhook Netopia în loc de Stripe
+   - Onboarding sub-merchant transportatori prin Netopia (cu acte fizice / online, depinde de Netopia)
+   - Schimbat metadata convention (Netopia API diferit de Stripe)
+3. **Stripe Connect onboarding** — ANULAT (nu se mai folosește Stripe)
 
 ### 🟡 MEDIU — îmbunătățiri funcționale
 
-4. ~~Taxa anuală membri ATPSOR (500 RON/an)~~ — **DONE (8 iun 2026, migrația 024)**:
+4. ~~Taxa anuală membri ATPSOR (500 RON/an)~~ — **DONE (8-9 iun 2026, migrații 024+025)**:
    - ✅ Pagina `/membership` cu form public + payment_reference unic
-   - ✅ Tab "Adeziuni" în admin/inspector (filtre + acțiuni)
-   - ✅ Confirmare plată → creare cont auto + email credențiale
+   - ✅ Tab "Adeziuni" în admin/inspector (filtre + acțiuni + buton legacy)
+   - ✅ Confirmare plată → creare cont auto + email credențiale + adeverință PDF
+   - ✅ Pagina `/adeverinta/[id]` (printabilă PDF)
+   - ✅ Pagina `/verifica/[code]` (verificare publică autenticitate)
    - ⏳ **TODO rămas:** factură SmartBill pentru cotizație (Dan își face propriul sistem facturare)
    - ⏳ **TODO rămas:** cron pentru reminder reînnoire (30/15/7 zile înainte de `expires_at`)
-5. **Rotire RESEND_API_KEY** (Vercel arată "Need to Rotate")
+5. ~~Cron documente expirate~~ — **DONE (9 iun 2026, refactor complet)**:
+   - ✅ Service role bypass RLS (rula cu 0 rezultate înainte)
+   - ✅ 5 niveluri severitate: expired / 1z / 7z / 15z / 30z
+   - ✅ Auto-suspendare companii cu acte critice expirate (RCA, ITP, licență)
+   - ✅ Email progresiv către transportator cu document evidențiat
+   - ✅ Raport admin cu sumar companii suspendate
+   - ✅ Buton manual "Rulează cron acum" în admin → tab Documente
+   - ✅ Auto-notificare admin când transportator încarcă doc nou (poate fi reactivat)
+6. ~~Notificări admin → la inspector~~ — **DONE (9 iun 2026)**:
+   - ✅ `src/lib/notifications.ts` cu `getNotifyEmails()` - returnează lista inspectorilor din DB
+   - ✅ George Ciutacu primește toate notificările (în loc de Dan)
+   - ✅ Fallback la NOTIFY_EMAIL dacă nu există inspector
+7. **Rotire RESEND_API_KEY** (Vercel arată "Need to Rotate")
 6. **Pagina /terms** există dar conținutul poate fi îmbunătățit cu termeni concreți
 7. **Stripe → LIVE keys** când totul de mai sus e gata
 
@@ -1187,6 +1227,34 @@ Pentru toate: CVC orice 3 cifre, dată ZZ/AA viitoare orice.
 - Articol publicat: "Întâlnire de lucru cu Marian Bârgău"
 - Discuție Stripe vs Netopia (Dan urmează să sune Netopia)
 - **Acest CLAUDE.md creat** — context complet pentru sesiuni viitoare
+
+### 1 mai 2026 — Fix middleware Inspector
+- Inspector nu era redirectat la /dashboard/admin (middleware + auth callback)
+
+### 7 mai 2026 — CLAUDE.md complet 100% (3 commit-uri consecutive)
+- Sesiuni noi pot relua fără pierdere de context
+- 22 → 27 → 39 secțiuni (cu lecții învățate, decizii abandonate, test data, quirks)
+
+### 8 iunie 2026 — Membership Flow + Fix CRON Documente
+- Migrație 024: `membership_requests`
+- Pagina `/membership` (refactor) + 3 API: `/request`, `/confirm-payment`, `/reject`
+- Tab "Adeziuni" în Admin Panel (MembershipManager.tsx)
+- Confirmare plată → creare cont auto + email credențiale + parolă temporară
+- **CRON documente expirate REFACTORIZAT COMPLET:** service role bypass RLS + 5 niveluri severitate + auto-suspendare + raport admin
+
+### 9 iunie 2026 — Adeverința Membru + Propunere Membri Fondatori
+- Migrație 025: `certificate_number` + `verification_code` + funcție SQL generare
+- Pagini publice `/adeverinta/[id]` (PDF printabil) + `/verifica/[code]` (validare)
+- Refactor `src/lib/notifications.ts`: notificările admin merg la **inspector George Ciutacu** (nu la Dan)
+- Reordonare meniu Header: Acasă → **Devino Membru** → Activități → Transportatori → Caut Transport
+- Buton "Devino Membru" pe homepage (replace "Caut Transport")
+- **Trimise 3 emailuri legacy** (practicteamtours, romeoromeo7007, luci.dumitru) cu link `/membership` + contact George
+- **CLARIFICAT MODEL DE BUSINESS:**
+  - Asociațiile NU pot avea cont la procesatori (Stripe, Netopia, etc.)
+  - **DECIZIE:** Luxuria procesează totul prin Netopia + primește integral comisionul
+  - ATPSOR primește integral cotizația 500 RON/an
+  - Document creat: **`PROPUNERE_PLATFORMA_ATPSOR.md`** pentru membri fondatori
+- **STATUS:** așteptăm acordul membrilor fondatori ATPSOR pentru a continua migrarea Stripe → Netopia
 
 ---
 
