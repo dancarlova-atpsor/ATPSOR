@@ -34,12 +34,25 @@
 - **50% din acest comision** → plătit de ATPSOR către **Luxuria** (drept folosință platformă tehnologică)
 - ATPSOR păstrează **50% net** (din care plătește costul Stripe/Netopia)
 
-### Taxa membru
+### Taxa membru — **IMPLEMENTAT** (8 iunie 2026, migrația 024)
 
 - **500 RON/an** de la fiecare transportator membru
-- **Factura emisă DIRECT de ATPSOR** către transportator
-- Cotizație asociație, separată de comisionul tranzacțional
-- **NU e încă implementată în cod** (TODO)
+- **Cont ATPSOR pentru încasare:** `RO58 CECE B000 30RO N397 9534`, CEC Bank SA, CIF 52819099
+- Flow:
+  1. Transportator completează form pe `/membership` (pagina publică)
+  2. API `/api/membership/request` salvează în `membership_requests`, generează `payment_reference` unic (format `ADEZIUNE-{CUI}-{TIMESTAMP_BASE36}`)
+  3. Email automat la solicitant cu IBAN + sumă + **referință obligatorie de plată**
+  4. Email automat la admin (NOTIFY_EMAIL) cu detaliile cererii
+  5. Admin/Inspector deschide tab "Adeziuni" în admin panel → vede listă cu filtre
+  6. Click **"Confirmă plata"** → `/api/membership/confirm-payment`:
+     - Marchează `status=paid`, setează `paid_at` + `expires_at` (1 an)
+     - Creează user nou în `auth.users` cu parolă temporară random (12 chars)
+     - Creează profile cu rol `transporter`
+     - Creează companies (sau asociază la existent prin CUI)
+     - Trimite email cu credențiale (email + parolă + buton login)
+  7. La 1 an, `status=expired` (TODO: cron pentru reminder reînnoire)
+- **Factură SmartBill:** NU emite automat (Dan își face propriul sistem facturare ATPSOR)
+- **TVA:** ATPSOR neplătitor TVA → 500 RON fără TVA, mențiune "Neplătitor TVA art. 310 CF"
 
 ### Exemplu pe 1.000 RON rezervare cu cardul
 
@@ -371,11 +384,12 @@ Detectare automată: dacă `pickup_country !== "RO" || dropoff_country !== "RO"`
 021 — bookings_update_policy        Transportatori pot UPDATE status booking
 022 — inspector_role                Rol nou + RLS policies
 023 — articles_intalniri_autoritati_category Add categorie nouă în CHECK constraint
+024 — membership_requests           Cereri adeziune ATPSOR (500 RON/an)
 ```
 
 **TOATE rulate deja în production**.
 
-**Pentru migrații noi:** următorul număr e `024`. NU modifica migrațiile existente — creează una nouă.
+**Pentru migrații noi:** următorul număr e `025`. NU modifica migrațiile existente — creează una nouă.
 
 ---
 
@@ -616,10 +630,12 @@ curl -s "https://atpsor.ro/api/public/transporters?t=$(date +%s)" -H "Cache-Cont
 
 ### 🟡 MEDIU — îmbunătățiri funcționale
 
-4. **Taxa anuală membri ATPSOR (500 RON/an)** — neimplementată:
-   - Tab nou în admin pentru gestionare membri
-   - Factură ATPSOR → transportator la înscriere/anual
-   - Tracking expirare cotizație + email reminders
+4. ~~Taxa anuală membri ATPSOR (500 RON/an)~~ — **DONE (8 iun 2026, migrația 024)**:
+   - ✅ Pagina `/membership` cu form public + payment_reference unic
+   - ✅ Tab "Adeziuni" în admin/inspector (filtre + acțiuni)
+   - ✅ Confirmare plată → creare cont auto + email credențiale
+   - ⏳ **TODO rămas:** factură SmartBill pentru cotizație (Dan își face propriul sistem facturare)
+   - ⏳ **TODO rămas:** cron pentru reminder reînnoire (30/15/7 zile înainte de `expires_at`)
 5. **Rotire RESEND_API_KEY** (Vercel arată "Need to Rotate")
 6. **Pagina /terms** există dar conținutul poate fi îmbunătățit cu termeni concreți
 7. **Stripe → LIVE keys** când totul de mai sus e gata
