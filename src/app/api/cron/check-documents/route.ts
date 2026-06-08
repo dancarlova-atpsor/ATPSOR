@@ -15,9 +15,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { Resend } from "resend";
+import { getNotifyEmails } from "@/lib/notifications";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const ADMIN_EMAIL = process.env.NOTIFY_EMAIL || "dan@luxuriatrans.ro";
 
 const DOCUMENT_LABELS: Record<string, string> = {
   company_license: "Licență transport ARR",
@@ -215,6 +215,8 @@ async function sendAdminEmail(alerts: CompanyAlert[]) {
   const critical = alerts.filter((a) => a.hasCriticalExpired);
   if (critical.length === 0 && alerts.filter((a) => a.hasExpired).length === 0) return;
 
+  const notifyTo = await getNotifyEmails();
+
   const summary = alerts.map((a) => {
     const expiredCnt = a.docs.filter((d) => d.daysLeft < 0).length;
     const upcomingCnt = a.docs.filter((d) => d.daysLeft >= 0).length;
@@ -231,7 +233,7 @@ async function sendAdminEmail(alerts: CompanyAlert[]) {
 
   await resend.emails.send({
     from: "ATPSOR <noreply@atpsor.ro>",
-    to: ADMIN_EMAIL,
+    to: notifyTo,
     subject: `[Cron] ${critical.length} companii suspendate + ${alerts.length} alertate`,
     html: `<div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;">
       <div style="background:#1e40af;color:white;padding:16px;border-radius:8px 8px 0 0;">

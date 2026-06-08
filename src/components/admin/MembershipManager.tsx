@@ -126,6 +126,39 @@ export default function MembershipManager() {
     rejected: requests.filter((r) => r.status === "rejected").length,
   };
 
+  // Trimite email la lista de cereri vechi (din Gmail-ul lui Dan)
+  const [legacyEmails, setLegacyEmails] = useState("");
+  const [sendingLegacy, setSendingLegacy] = useState(false);
+  const [showLegacy, setShowLegacy] = useState(false);
+
+  async function sendLegacyEmails() {
+    const list = legacyEmails.split(/[\s,;]+/).filter((e) => e.includes("@"));
+    if (list.length === 0) {
+      setMessage({ type: "error", text: "Introdu cel puțin un email valid" });
+      return;
+    }
+    setSendingLegacy(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/membership/notify-legacy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: list }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Eroare la trimitere" });
+      } else {
+        setMessage({ type: "success", text: `✓ Trimise: ${data.sent}/${data.total}. Eșuate: ${data.failed}.` });
+        setLegacyEmails("");
+        setShowLegacy(false);
+      }
+    } catch (err: any) {
+      setMessage({ type: "error", text: err?.message || "Eroare de conexiune" });
+    }
+    setSendingLegacy(false);
+  }
+
   return (
     <div className="space-y-4">
       {/* Header info */}
@@ -139,6 +172,40 @@ export default function MembershipManager() {
         <div className="mt-2 rounded bg-white p-2 font-mono text-xs">
           <strong>Cont ATPSOR:</strong> IBAN RO58 CECE B000 30RO N397 9534 | CEC Bank | CIF 52819099 | 500 RON/an
         </div>
+      </div>
+
+      {/* Email la cereri vechi (din Gmail) */}
+      <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-4">
+        <button
+          onClick={() => setShowLegacy(!showLegacy)}
+          className="flex w-full items-center justify-between text-sm font-semibold text-amber-900"
+        >
+          <span>📧 Trimite email la cereri vechi (formular transport "CERERE ADEZIUNE")</span>
+          <span>{showLegacy ? "▲" : "▼"}</span>
+        </button>
+        {showLegacy && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-amber-700">
+              Pentru cele 8 cereri vechi care au venit prin formularul de transport.
+              Lipești email-urile lor (separate prin virgulă, spațiu sau enter)
+              și primesc email cu link la <strong>/membership</strong> + datele de contact ale lui George Ciutacu.
+            </p>
+            <textarea
+              value={legacyEmails}
+              onChange={(e) => setLegacyEmails(e.target.value)}
+              rows={4}
+              placeholder="email1@example.com&#10;email2@example.com&#10;..."
+              className="w-full rounded border border-amber-300 bg-white p-2 text-sm font-mono"
+            />
+            <button
+              onClick={sendLegacyEmails}
+              disabled={sendingLegacy || !legacyEmails.trim()}
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {sendingLegacy ? "Se trimite..." : "Trimite email la toți"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Message */}

@@ -9,9 +9,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { Resend } from "resend";
+import { getNotifyEmails, SECRETARY_CONTACT } from "@/lib/notifications";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const ADMIN_EMAIL = process.env.NOTIFY_EMAIL || "dan@luxuriatrans.ro";
 
 // IBAN + cont ATPSOR (pentru emailul către solicitant)
 const ATPSOR_BANK = {
@@ -138,10 +138,14 @@ export async function POST(request: Request) {
       <li>Te loghezi, completezi datele vehiculelor + documentele → admin verifică → apari public.</li>
     </ol>
 
-    <p style="font-size:13px;color:#6b7280;margin-top:24px;">
-      Dacă ai întrebări, scrie-ne la <a href="mailto:contact@atpsor.ro" style="color:#1e40af;">contact@atpsor.ro</a>
-      sau sună la <strong>+40 745 635 657</strong>.
-    </p>
+    <div style="background:#e0f2fe;padding:14px;border-radius:6px;margin-top:24px;">
+      <p style="font-size:13px;color:#0c4a6e;margin:0 0 4px 0;font-weight:bold;">📞 Pentru întrebări sau confirmarea plății:</p>
+      <p style="font-size:13px;color:#0c4a6e;margin:0;">
+        <strong>${SECRETARY_CONTACT.name}</strong> — ${SECRETARY_CONTACT.role}<br/>
+        Email: <a href="mailto:${SECRETARY_CONTACT.email}" style="color:#1e40af;">${SECRETARY_CONTACT.email}</a><br/>
+        Telefon: <strong>${SECRETARY_CONTACT.phone}</strong>
+      </p>
+    </div>
   </div>
   <div style="background:#f3f4f6;padding:16px;text-align:center;font-size:12px;color:#6b7280;border-radius:0 0 8px 8px;">
     Asociația ATPSOR — CIF 52819099<br/>
@@ -191,9 +195,10 @@ export async function POST(request: Request) {
   </div>
 </div>`;
 
+        const notifyTo = await getNotifyEmails();
         await resend.emails.send({
           from: "ATPSOR <noreply@atpsor.ro>",
-          to: ADMIN_EMAIL,
+          to: notifyTo,
           subject: `Adeziune nouă: ${formType === "company" ? companyName : fullName} (${paymentRef})`,
           html: adminEmailHtml,
         });

@@ -6,9 +6,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { Resend } from "resend";
+import { getNotifyEmails } from "@/lib/notifications";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const ADMIN_EMAIL = process.env.NOTIFY_EMAIL || "dan@luxuriatrans.ro";
 
 function createServiceClient() {
   return createServerClient(
@@ -50,12 +50,13 @@ export async function POST(request: Request) {
 
     const allValid = expired.length === 0;
 
-    // Dacă compania e suspendată și acum toate documentele sunt valide → email admin
+    // Dacă compania e suspendată și acum toate documentele sunt valide → email inspector/admin
     if (allValid && !company.is_verified && company.is_approved && resend) {
+      const notifyTo = await getNotifyEmails();
       try {
         await resend.emails.send({
           from: "ATPSOR <noreply@atpsor.ro>",
-          to: ADMIN_EMAIL,
+          to: notifyTo,
           subject: `🔄 ${company.name} — toate documentele sunt valide, poate fi reactivată`,
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
             <div style="background:#16a34a;color:white;padding:16px;border-radius:8px 8px 0 0;">
