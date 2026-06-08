@@ -36,19 +36,13 @@ export function HeroAssociation() {
               fiecărui transportator din România</strong>. Alătură-te celor care au curajul
               să schimbe lucrurile. Împreună, autoritățile ne aud.
             </p>
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <Link
-                href="/request"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-accent-600"
-              >
-                Caut Transport
-                <ArrowRight className="h-5 w-5" />
-              </Link>
+            <div className="mt-8 flex">
               <Link
                 href="/membership"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-6 py-3 text-base font-semibold text-white hover:bg-white/10"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-8 py-4 text-lg font-semibold text-white shadow-lg hover:bg-accent-600"
               >
                 Devino Membru
+                <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </div>
