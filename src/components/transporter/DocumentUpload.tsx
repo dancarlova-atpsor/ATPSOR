@@ -110,6 +110,18 @@ export function DocumentUpload({
         return;
       }
 
+      // Notific admin că noua versiune e încărcată — dacă toate docs sunt acum valide
+      // și compania e suspendată, admin primește email să o reactiveze
+      try {
+        await fetch("/api/companies/notify-reverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId }),
+        });
+      } catch {
+        // Silent fail — nu blocăm uploadul
+      }
+
       setShowForm(false);
       onUploaded?.();
     } catch (err: any) {

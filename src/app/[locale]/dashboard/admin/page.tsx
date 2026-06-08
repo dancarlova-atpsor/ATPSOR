@@ -31,6 +31,7 @@ import { VEHICLE_CATEGORIES } from "@/types/database";
 import InvoiceList from "@/components/invoices/InvoiceList";
 import ArticlesManager from "@/components/admin/ArticlesManager";
 import MembershipManager from "@/components/admin/MembershipManager";
+import DocumentExpiryPanel from "@/components/admin/DocumentExpiryPanel";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -1131,6 +1132,9 @@ export default function AdminDashboard() {
       {/* ===== DOCUMENTS ===== */}
       {activeTab === "documents" && (
         <div className="space-y-6">
+          {/* Panel cron documente expirate */}
+          <DocumentExpiryPanel />
+
           {/* Unverified first */}
           {unverifiedDocs > 0 && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
