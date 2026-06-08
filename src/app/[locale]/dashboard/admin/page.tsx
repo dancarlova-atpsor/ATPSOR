@@ -30,11 +30,12 @@ import { createClient } from "@/lib/supabase/client";
 import { VEHICLE_CATEGORIES } from "@/types/database";
 import InvoiceList from "@/components/invoices/InvoiceList";
 import ArticlesManager from "@/components/admin/ArticlesManager";
+import MembershipManager from "@/components/admin/MembershipManager";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    "overview" | "users" | "companies" | "requests" | "offers" | "documents" | "invoices" | "articles"
+    "overview" | "users" | "companies" | "requests" | "offers" | "documents" | "invoices" | "articles" | "membership"
   >("overview");
   const [loading, setLoading] = useState(true);
   const [adminId, setAdminId] = useState<string>("");
@@ -343,6 +344,7 @@ export default function AdminDashboard() {
     { key: "overview" as const, label: "Overview", icon: BarChart3 },
     { key: "users" as const, label: "Utilizatori", icon: Users },
     { key: "companies" as const, label: "Companii", icon: Building2 },
+    { key: "membership" as const, label: "Adeziuni", icon: UserCheck },
     { key: "requests" as const, label: "Cereri", icon: FileText },
     { key: "offers" as const, label: "Oferte & Rezervări", icon: MessageSquare },
     { key: "documents" as const, label: "Documente", icon: Shield },
@@ -1296,6 +1298,10 @@ export default function AdminDashboard() {
 
       {activeTab === "invoices" && (
         <InvoiceList role="admin" />
+      )}
+
+      {activeTab === "membership" && (
+        <MembershipManager />
       )}
 
       {activeTab === "articles" && (

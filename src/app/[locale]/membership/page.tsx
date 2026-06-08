@@ -37,57 +37,121 @@ export default function MembershipPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [paymentRef, setPaymentRef] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setErrorMsg("");
 
     try {
-      await fetch("/api/request", {
+      const res = await fetch("/api/membership/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickupCity: "CERERE ADEZIUNE ATPSOR",
-          pickupLocation: formType === "company" ? `Firmă: ${companyName} (CUI: ${cui})` : `Persoană fizică: ${fullName}`,
-          dropoffCity: `${city}, ${county}`,
-          dropoffLocation: `${email} | ${phone}`,
-          departureDate: new Date().toISOString().split("T")[0],
-          passengers: vehicleCount || "0",
-          vehicleCategory: formType,
-          description: `Tip: ${formType === "company" ? "Reprezentant firmă transport" : "Persoană din domeniu"}\nNume: ${fullName}\nFuncție: ${position}\nMotivație: ${motivation}`,
-          isRoundTrip: false,
-          dayPrograms: [],
-          totalEstimatedKm: 0,
-          totalBillableKm: 0,
+          formType,
+          companyName,
+          cui,
+          fullName,
+          position,
+          email,
+          phone,
+          city,
+          county,
+          vehicleCount,
+          motivation,
         }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data?.error || "Eroare la trimiterea cererii. Încearcă din nou.");
+        setSubmitting(false);
+        return;
+      }
+      setPaymentRef(data?.payment_reference || "");
+      setSubmitted(true);
     } catch {
-      // Continue
+      setErrorMsg("Eroare de conexiune. Verifică internetul și încearcă din nou.");
     }
 
     setSubmitting(false);
-    setSubmitted(true);
   }
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        {/* Success header */}
+        <div className="text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Cerere de adeziune înregistrată!</h2>
+          <p className="mt-3 text-gray-600">
+            Pentru activarea contului, urmează pașii de mai jos.
+          </p>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">Cerere de adeziune trimisă!</h2>
-        <p className="mt-4 text-gray-600">
-          Cererea ta a fost trimisă cu succes. Echipa ATPSOR o va analiza și te va contacta
-          în cel mai scurt timp la adresa <strong>{email}</strong> sau la numărul <strong>{phone}</strong>.
-        </p>
-        <p className="mt-3 text-sm text-gray-500">
-          Taxa anuală de membru este de <strong>500 RON</strong>. Detaliile de plată vor fi trimise
-          după aprobarea cererii.
-        </p>
-        <Link href="/"
-          className="mt-6 inline-block rounded-lg bg-primary-500 px-6 py-2.5 font-medium text-white hover:bg-primary-600">
-          Înapoi la Acasă
-        </Link>
+
+        {/* Payment details — IBAN ATPSOR */}
+        <div className="mt-8 overflow-hidden rounded-2xl border-2 border-primary-300 bg-gradient-to-br from-blue-50 to-white shadow-lg">
+          <div className="bg-primary-600 px-6 py-4 text-white">
+            <h3 className="flex items-center gap-2 text-lg font-bold">
+              <CreditCard className="h-5 w-5" />
+              Date pentru plata taxei anuale (500 RON)
+            </h3>
+          </div>
+          <div className="space-y-3 p-6 text-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+              <span className="text-gray-500">Beneficiar:</span>
+              <span className="text-right font-semibold">Asociația ATPSOR</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+              <span className="text-gray-500">CIF:</span>
+              <span className="text-right font-mono">52819099</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+              <span className="text-gray-500">IBAN:</span>
+              <span className="text-right font-mono font-bold text-primary-700">RO58 CECE B000 30RO N397 9534</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+              <span className="text-gray-500">Banca:</span>
+              <span className="text-right font-semibold">CEC Bank SA</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+              <span className="text-gray-500">Sumă:</span>
+              <span className="text-right text-xl font-bold text-red-600">500,00 RON</span>
+            </div>
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Referință OBLIGATORIE la plată</div>
+              <div className="mt-1 font-mono text-lg font-bold text-amber-900">{paymentRef}</div>
+              <div className="mt-1 text-xs text-amber-700">⚠️ Treci această referință în descrierea ordinului de plată ca să identificăm cererea ta.</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Next steps */}
+        <div className="mt-6 rounded-xl bg-white p-6 shadow-md">
+          <h3 className="mb-3 font-semibold text-gray-900">Următorii pași:</h3>
+          <ol className="space-y-2 text-sm text-gray-700">
+            <li><strong>1.</strong> Efectuează plata de 500 RON în contul de mai sus (termen recomandat: 7 zile).</li>
+            <li><strong>2.</strong> Primești email automat la <strong>{email}</strong> cu detaliile complete + referința de plată.</li>
+            <li><strong>3.</strong> După confirmarea plății, ATPSOR îți activează contul de transportator pe atpsor.ro și-ți trimite email cu credențiale.</li>
+            <li><strong>4.</strong> Te loghezi → completezi vehiculele + documentele → admin verifică → apari pe pagina publică.</li>
+          </ol>
+        </div>
+
+        {/* Print/save */}
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button onClick={() => window.print()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary-500 px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50">
+            <Download className="h-4 w-4" />
+            Tipărește / Salvează ca PDF
+          </button>
+          <Link href="/"
+            className="flex-1 rounded-lg bg-primary-500 px-6 py-2.5 text-center font-medium text-white hover:bg-primary-600">
+            Înapoi la Acasă
+          </Link>
+        </div>
       </div>
     );
   }
@@ -284,6 +348,12 @@ export default function MembershipPage() {
                   </span>
                 </label>
               </div>
+
+              {errorMsg && (
+                <div className="rounded-lg bg-red-50 border-2 border-red-300 p-3 text-sm font-medium text-red-700">
+                  ❌ {errorMsg}
+                </div>
+              )}
 
               <button type="submit" disabled={submitting || !acceptTerms}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-500 py-3.5 text-base font-semibold text-white shadow-lg hover:bg-primary-600 disabled:opacity-50">
