@@ -96,9 +96,12 @@ export default function MembershipPage() {
         <div className="mt-8 overflow-hidden rounded-2xl border-2 border-primary-300 bg-gradient-to-br from-blue-50 to-white shadow-lg">
           <div className="bg-primary-600 px-6 py-4 text-white">
             <h3 className="flex items-center gap-2 text-lg font-bold">
-              <CreditCard className="h-5 w-5" />
+              <Building className="h-5 w-5" />
               Date pentru plata taxei anuale (500 RON)
             </h3>
+            <p className="mt-1 text-xs text-primary-100">
+              ⚠️ Plata se face <strong>DOAR prin transfer bancar</strong>. Conturile asociațiilor nu acceptă plăți cu cardul.
+            </p>
           </div>
           <div className="space-y-3 p-6 text-sm">
             <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">

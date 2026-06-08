@@ -121,6 +121,9 @@ export async function POST(request: Request) {
     </div>
 
     <h3 style="font-size:16px;color:#111;margin-top:20px;">Date pentru plată:</h3>
+    <p style="font-size:12px;color:#dc2626;font-weight:bold;margin:0 0 12px 0;">
+      ⚠️ Plata se face DOAR prin transfer bancar (conturile asociațiilor nu acceptă plata cu cardul).
+    </p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
       <tr><td style="padding:8px 0;color:#6b7280;width:40%;">Beneficiar:</td><td style="padding:8px 0;font-weight:bold;">Asociația ATPSOR</td></tr>
       <tr><td style="padding:8px 0;color:#6b7280;">CIF:</td><td style="padding:8px 0;font-family:monospace;">${ATPSOR_BANK.cif}</td></tr>
