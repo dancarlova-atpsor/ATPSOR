@@ -1251,10 +1251,31 @@ Pentru toate: CVC orice 3 cifre, dată ZZ/AA viitoare orice.
 - **Trimise 3 emailuri legacy** (practicteamtours, romeoromeo7007, luci.dumitru) cu link `/membership` + contact George
 - **CLARIFICAT MODEL DE BUSINESS:**
   - Asociațiile NU pot avea cont la procesatori (Stripe, Netopia, etc.)
-  - **DECIZIE:** Luxuria procesează totul prin Netopia + primește integral comisionul
+  - **DECIZIE Luxuria:** Luxuria procesează totul prin Netopia + primește integral comisionul
   - ATPSOR primește integral cotizația 500 RON/an
   - Document creat: **`PROPUNERE_PLATFORMA_ATPSOR.md`** pentru membri fondatori
-- **STATUS:** așteptăm acordul membrilor fondatori ATPSOR pentru a continua migrarea Stripe → Netopia
+
+### 15 iunie 2026 — Reacții membri fondatori la propunere
+- George Ciutacu (secretar) trimite mesaj WhatsApp către toți fondatorii: întâlnire 16.06.2026 ora 17:00 la biroul Luxuria pentru analiza propunerii
+- **PRIMUL VOT: NEGATIV** de la "Dan" (+40 721 268 750, alt Dan decât proprietarul platformei):
+  - Motiv: "asociația trebuie să-și continue proiectele și scopul, fără a avea de-a face cu platforma și firma care deține domeniul"
+  - Cere și **ștergerea contului său din platformă**
+  - "Asociația nu a fost înființată pentru a crea platforme în urma cărora se numără un profit"
+- George Ciutacu răspunde diplomatic: solicită propuneri alternative concrete
+- **STATUS:** întâlnire 16.06.2026 va decide; AGA poate dezaproba propunerea Luxuria
+
+### 16 iunie 2026 — Întâlnire AGA fondatori ATPSOR (PENDING)
+- TODO: notează rezultatul votului
+- TODO: dacă propunerea e respinsă → migrare alt model (ex: Luxuria livrează platforma standalone, ATPSOR rămâne separat)
+- TODO: dacă e acceptată → Stripe → Netopia migration
+
+**ATENȚIE pentru sesiuni viitoare:**
+Dacă propunerea e respinsă, există 3 căi posibile:
+1. **Renegociere termeni** (% comision mai mic, durată diferită, etc.)
+2. **Decuplare** — Luxuria continuă platforma sub `luxuriatravel.ro` (sau alt domeniu), ATPSOR rămâne independent fără tehnologie
+3. **Cumpărare de către ATPSOR** — atipic pentru asociație non-profit, complicat juridic
+
+Întreabă Dan ce vrea să facă înainte de orice modificare tehnică majoră.
 
 ---
 
