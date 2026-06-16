@@ -11,6 +11,19 @@ const PROTECTED_PATTERNS = [/^\/(ro|en)\/dashboard/];
 export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const pathname = request.nextUrl.pathname;
+
+  // MAINTENANCE MODE: dacă MAINTENANCE_MODE=true în Vercel env, redirect tot la /maintenance
+  // Excepție: /maintenance însuși și asset-urile statice (_next, favicon, etc.)
+  if (
+    process.env.MAINTENANCE_MODE === "true" &&
+    !pathname.startsWith("/maintenance") &&
+    !pathname.startsWith("/_next") &&
+    !pathname.startsWith("/api/_health") &&
+    !pathname.includes(".")
+  ) {
+    return NextResponse.rewrite(new URL("/maintenance", request.url));
+  }
 
   // If Supabase not configured, just run i18n middleware
   if (!url || url.includes("placeholder") || !anonKey) {
@@ -47,8 +60,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
 
   // Check if this is a protected route
   const isProtected = PROTECTED_PATTERNS.some((pattern) =>
@@ -127,5 +138,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/(ro|en)/:path*"],
+  // Includem TOATE path-urile (nu doar i18n) ca să prindem și /maintenance + alte path-uri
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|atpsor-logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|css|map|woff|woff2|ttf|otf)$).*)",
+  ],
 };
