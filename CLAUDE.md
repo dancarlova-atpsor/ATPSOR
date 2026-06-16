@@ -1264,18 +1264,45 @@ Pentru toate: CVC orice 3 cifre, dată ZZ/AA viitoare orice.
 - George Ciutacu răspunde diplomatic: solicită propuneri alternative concrete
 - **STATUS:** întâlnire 16.06.2026 va decide; AGA poate dezaproba propunerea Luxuria
 
-### 16 iunie 2026 — Întâlnire AGA fondatori ATPSOR (PENDING)
-- TODO: notează rezultatul votului
-- TODO: dacă propunerea e respinsă → migrare alt model (ex: Luxuria livrează platforma standalone, ATPSOR rămâne separat)
-- TODO: dacă e acceptată → Stripe → Netopia migration
+### 16 iunie 2026 — Decizie Dan: RETRAGERE din ATPSOR
+- Dan a decis să se retragă din Asociație după refuzul propunerii
+- Cererea de retragere oficială scrisă: `CERERE_RETRAGERE_ATPSOR.md`
+- Trimisă către Consiliul Director + George Ciutacu (Secretar)
+- Solicitări incluse:
+  - Restituire împrumut 300 RON în contul Luxuria (BT)
+  - Predare date membri conform GDPR — FĂCUTĂ azi (export JSON trimis pe email)
+  - Mențiune că platforma rămâne integral Luxuria
+- **STATUS PLATFORMĂ: OFFLINE** (mod mentenanță activat în Vercel: `MAINTENANCE_MODE=true`)
+- Pagina /maintenance afișează: mesaj reorganizare + contact George + contact Luxuria
+- Fix de securitate Supabase: activat RLS pe tabela `vehicle_blocks` (era cu policies dar fără RLS enable)
 
-**ATENȚIE pentru sesiuni viitoare:**
-Dacă propunerea e respinsă, există 3 căi posibile:
-1. **Renegociere termeni** (% comision mai mic, durată diferită, etc.)
-2. **Decuplare** — Luxuria continuă platforma sub `luxuriatravel.ro` (sau alt domeniu), ATPSOR rămâne independent fără tehnologie
-3. **Cumpărare de către ATPSOR** — atipic pentru asociație non-profit, complicat juridic
+**STATUS PROIECT după 16 iunie 2026:**
+- Cod: rămâne pe GitHub `dancarlova-atpsor/ATPSOR` (Dan e owner)
+- Platformă: OFFLINE (intenționat, NU bug)
+- DB Supabase: păstrată complet (NU s-au șters date încă — așteptăm confirmare George primit export)
+- Vercel: domeniul atpsor.ro încă pointează la proiect
+- Toate datele utilizatorilor externi (SMOTOCEL, Ianis, Bodany, Floarea, Quick Ride) sunt încă în DB
 
-Întreabă Dan ce vrea să facă înainte de orice modificare tehnică majoră.
+**TODO următoarele zile:**
+1. Așteaptă confirmare George că a primit exportul
+2. Decide ce facem cu domeniul atpsor.ro:
+   - Transferă către ATPSOR (contra cost) — dacă ATPSOR cere
+   - Sau scoate din uz / lasă inactiv
+3. **REBRAND platformă pentru Luxuria** (când Dan vrea să continue):
+   - Domeniu nou: ex `luxuriatours.ro` / `mybus.ro` / altul
+   - Refactor texte UI: scoate "ATPSOR" → pune brand nou Luxuria
+   - Schimbare logo, culori (dacă vrea)
+   - Activate Netopia pentru plăți (Luxuria are deja cont)
+   - SmartBill Luxuria deja configurat
+4. După rebrand → poți reactiva platforma sub noul nume
+5. Ștergere date utilizatori externi din DB (după ce a confirmat George primirea exportului)
+
+**Note pentru sesiuni viitoare:**
+- Acest proiect și-a schimbat scopul: din "platformă ATPSOR" → "platformă comercială Luxuria pentru transport ocazional"
+- Toate modulele tehnice rămân valabile (vehicule, rezervări, contract, facturare, etc.)
+- Doar branding-ul + plățile (Netopia în loc de cardul prin ATPSOR) trebuie ajustate
+- Modulul de adeziune ATPSOR (`/membership`, `/adeverinta`, `/verifica`) — POATE fi scos sau transformat în "abonament platformă"
+- Cron documente expirate, sistem rezervări, calculator preț — TOATE rămân utile
 
 ---
 
