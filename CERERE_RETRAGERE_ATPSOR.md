@@ -77,11 +77,26 @@ Pe platforma atpsor.ro există în prezent conturi de TESTARE (nu reale, fără 
 
 ## 3. OBLIGAȚII FINANCIARE / RESTITUIRI
 
-3.1. Nu solicit Asociației ATPSOR restituirea cotizațiilor sau a investiției personale în dezvoltarea platformei.
+3.1. Nu solicit restituirea investiției personale în dezvoltarea platformei online atpsor.ro (peste 56.000 EUR — vezi punctul 2.1 și Anexa 3).
 
-3.2. Cotizația mea anuală 2026 a fost achitată / nu a fost încasată [bifează ce e cazul]. Nu solicit restituirea acesteia.
+3.2. **SOLICIT RESTITUIREA ÎMPRUMUTULUI ACORDAT ASOCIAȚIEI ATPSOR ÎN CUANTUM DE 300 RON.**
 
-3.3. Solicit Asociației să-mi transmită un EXEMPLAR semnat al Procesului-Verbal al Consiliului Director / Adunării Generale care confirmă retragerea mea, conform Statutului.
+Această sumă a fost acordată Asociației ATPSOR cu titlu de **împrumut** pentru acoperirea unor cheltuieli operaționale inițiale (taxe înregistrare, papetărie, alte cheltuieli administrative).
+
+Date pentru restituire:
+- **Sumă:** 300 RON
+- **Modalitate:** transfer bancar în contul Luxuria Trans & Travel SRL
+- **IBAN:** RO43 BTRL RONC RT02 0978 9901 — Banca Transilvania, Agenția Rahova
+- **Beneficiar:** Luxuria Trans & Travel SRL, CUI RO31261740
+- **Detalii ordin plată:** "Restituire împrumut Dan Cîrlova către ATPSOR"
+- **Termen solicitat:** maxim 30 zile de la data prezentei cereri
+
+3.3. Cotizația mea anuală 2026 nu a fost încasată în contul ATPSOR (NU se aplică restituire). Dacă în viitor s-ar descoperi că am achitat o cotizație, solicit restituirea ei pe IBAN-ul de mai sus.
+
+3.4. Solicit Asociației să-mi transmită:
+- Un EXEMPLAR semnat al Procesului-Verbal al Consiliului Director / Adunării Generale care confirmă retragerea mea;
+- Dovada restituirii împrumutului de 300 RON (OP / extras bancar);
+- Conform Statutului ATPSOR și OG 26/2000.
 
 ---
 
@@ -136,6 +151,7 @@ Semnătură: _____________________
 3. **Anexa 3:** Listă investiții Luxuria în platforma atpsor.ro (cu chitanțe / facturi)
 4. **Anexa 4:** Lista funcționalităților platformei dezvoltate (cu specificații tehnice)
 5. **Anexa 5:** Copie după Propunerea de Colaborare anterior depusă (`PROPUNERE_PLATFORMA_ATPSOR.md`)
+6. **Anexa 6:** Dovada împrumutului de 300 RON acordat Asociației ATPSOR (chitanță / OP / extras bancar / contract de împrumut)
 
 ---
 
